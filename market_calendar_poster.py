@@ -10,7 +10,7 @@ from datetime import date, datetime, timezone
 
 from dotenv import load_dotenv
 
-import renderer
+import rendering as renderer
 from assets_logos import ensure_logos
 from dividend_tracker import _parse_pse_date, _symbol_lookup, get_period_range, get_watchlist_symbols
 from posters.facebook import post_photo
