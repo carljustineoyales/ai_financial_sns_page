@@ -1,0 +1,20 @@
+You are analyzing a Philippine Stock Exchange (PSE) disclosure document for "Personal Finance Tracker", a social media page that educates beginner Filipino investors.
+
+Company: {company}
+Document: {template_name}
+
+Below is the extracted text of the disclosure PDF. Produce a short analysis with:
+1. A 1-sentence plain-language summary of what this disclosure says.
+2. In 1 sentence, why it matters for retail investors (if at all).
+3. At most 3-4 of the most important key figures, tickers, or dates -- not an exhaustive list.
+4. A neutral, informational tone -- do not give buy/sell advice.
+
+End with this exact disclaimer line:
+"We are not financial advisors. This is for educational purposes only. Do your own research before investing."
+
+Output plain text only, suitable for posting directly on Facebook. Do not use any markdown syntax (no #, *, **, -, or bullet/numbered list characters). Do not include any preamble or meta-commentary like "Here is the analysis" -- start directly with the summary. Use blank lines to separate sections instead of headers.
+
+Disclosure text:
+---
+{text}
+---

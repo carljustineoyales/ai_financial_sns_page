@@ -1,0 +1,137 @@
+"""Tracks PSE's company directory for listing/delisting changes, and computes
+daily top gainers, top losers, and most active stocks across all PSE-listed
+companies.
+
+Which symbols are top gainers/losers/most-active comes from PSE's own
+pre-computed tables on frames.pse.com.ph's homepage (one request, first-party,
+no third-party licensing risk) via get_movers_snapshot(). Those tables only
+give symbol/price/change, so the ~30 symbols across all three lists are then
+enriched individually via PSE Edge's Stock Data page (companyPage/stockData.do)
+to get high/low/market_cap/company name -- far fewer requests than scanning
+every listed company.
+"""
+
+import json
+import os
+import time
+from datetime import date
+
+from scraper.pse_edge import new_session, get_company_directory, get_stock_data, get_movers_snapshot
+
+DATA_DIR = "data"
+COMPANY_DIRECTORY_CACHE = os.path.join(DATA_DIR, "pse_companies.json")
+OUTPUT_DIR = os.path.join("output", "market_movers")
+
+REQUEST_DELAY_SECONDS = 0.5
+
+
+def refresh_company_directory(cache_path=COMPANY_DIRECTORY_CACHE):
+    new_companies = get_company_directory()
+    new_symbols = {c["symbol"] for c in new_companies}
+
+    if os.path.exists(cache_path):
+        with open(cache_path) as f:
+            old_companies = json.load(f)
+        old_symbols = {c["symbol"] for c in old_companies}
+
+        added = new_symbols - old_symbols
+        removed = old_symbols - new_symbols
+        if added:
+            print(f"New listings detected: {sorted(added)}")
+        if removed:
+            print(f"Delistings/removals detected: {sorted(removed)}")
+        if not added and not removed:
+            print("Company directory unchanged since last check.")
+    else:
+        print(f"No previous company directory cache -- saving initial snapshot ({len(new_companies)} companies).")
+
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+    with open(cache_path, "w") as f:
+        json.dump(new_companies, f, indent=2)
+
+    return new_companies
+
+
+def compute_market_movers(companies, top_n=5, delay_seconds=REQUEST_DELAY_SECONDS):
+    session = new_session()
+    session.get("https://edge.pse.com.ph/companyDirectory/form.do")
+
+    snapshot = get_movers_snapshot(session=session)
+    cmpy_id_by_symbol = {c["symbol"]: c.get("cmpy_id") for c in companies}
+    company_name_by_symbol = {c["symbol"]: c["company"] for c in companies}
+
+    all_symbols = {
+        entry["symbol"]
+        for entries in snapshot.values()
+        for entry in entries
+    }
+
+    enriched = {}
+    skipped = []
+    symbols = sorted(all_symbols)
+    for i, symbol in enumerate(symbols):
+        cmpy_id = cmpy_id_by_symbol.get(symbol)
+        if not cmpy_id:
+            skipped.append(symbol)
+            continue
+
+        try:
+            data = get_stock_data(cmpy_id, session=session)
+        except Exception as e:
+            data = None
+            skipped.append(f"{symbol} ({e})")
+
+        if data:
+            data["symbol"] = symbol
+            data["company"] = company_name_by_symbol.get(symbol, symbol)
+            enriched[symbol] = data
+        else:
+            skipped.append(symbol)
+
+        if i < len(symbols) - 1:
+            time.sleep(delay_seconds)
+
+    if skipped:
+        print(f"Skipped {len(skipped)} symbols with no trading data today: {skipped}")
+
+    def _build_list(key):
+        entries = []
+        for entry in snapshot[key][:top_n]:
+            data = enriched.get(entry["symbol"])
+            if data:
+                entries.append(data)
+        return entries
+
+    return {
+        "gainers": _build_list("gainers"),
+        "losers": _build_list("losers"),
+        "most_active": _build_list("most_active"),
+    }
+
+
+def main():
+    print("Refreshing company directory...")
+    companies = refresh_company_directory()
+
+    print("Computing market movers from PSE's own top-10 snapshot...")
+    movers = compute_market_movers(companies)
+
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    output_path = os.path.join(OUTPUT_DIR, f"{date.today().isoformat()}.json")
+    with open(output_path, "w") as f:
+        json.dump(movers, f, indent=2)
+
+    print(f"\nSaved to {output_path}\n")
+    print("Top gainers:")
+    for r in movers["gainers"]:
+        print(f"  {r['symbol']}: {r['percent_change']:+.2f}% (₱{r['price']})")
+    print("Top losers:")
+    for r in movers["losers"]:
+        print(f"  {r['symbol']}: {r['percent_change']:+.2f}% (₱{r['price']})")
+    print("Most active:")
+    for r in movers["most_active"]:
+        print(f"  {r['symbol']}: {r['volume']:,} shares")
+
+
+if __name__ == "__main__":
+    main()

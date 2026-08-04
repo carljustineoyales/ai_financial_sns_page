@@ -1,0 +1,35 @@
+# ai_financial_sns_page cron jobs
+#
+# NOT INSTALLED. This file is a draft for review/testing.
+# To enable once you're ready: crontab scripts/crontab
+# To check what's currently installed: crontab -l
+# System timezone is Asia/Manila, matching PSE trading hours below.
+
+PROJECT_DIR=/home/cjoyales/personal/ai_financial_sns_page
+PYTHON=/home/cjoyales/personal/ai_financial_sns_page/.venv/bin/python
+
+# Financial report disclosures: scrape, analyze, and post to Facebook.
+# Every 30 min during PSE trading hours (9:30am-3:30pm), Mon-Fri.
+# POST_MODE=auto is required here -- main.py's input() prompt would otherwise
+# hang forever under cron. Confirm you're comfortable with unattended
+# Facebook posting before enabling this line.
+*/30 9-15 * * 1-5 cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_main.lock $PYTHON main.py >> logs/main.log 2>&1
+
+# Market movers (gainers/losers/most active): needs final end-of-day prices,
+# so it runs after the 3:30pm close. Uses PSE's own pre-computed top-10
+# snapshot (frames.pse.com.ph) plus ~30 targeted lookups -- seconds, not
+# minutes.
+0 16 * * 1-5 cd $PROJECT_DIR && mkdir -p logs && flock -n /tmp/ai_fsns_market_movers.lock $PYTHON -m scraper.market_movers >> logs/market_movers.log 2>&1
+
+# Market calendar (dividends/SROs/meetings/listings): cheap single-page
+# fetch, refreshed daily for the current month.
+30 16 * * 1-5 cd $PROJECT_DIR && mkdir -p logs && flock -n /tmp/ai_fsns_market_calendar.lock $PYTHON -m scraper.market_calendar >> logs/market_calendar.log 2>&1
+
+# Market calendar graphic (PSEi + REIT watchlist, all event types): monthly
+# preview of next month, same day as the dividend monthly cards.
+10 8 25 * * cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_market_calendar_poster.lock $PYTHON market_calendar_poster.py >> logs/market_calendar_poster.log 2>&1
+
+# Year overview graphic (PSEi + REIT watchlist): full Jan-Dec dividend
+# payout calendar for the current year. Refreshed monthly since more
+# months get declared as the year progresses.
+20 8 25 * * cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_year_overview_poster.lock $PYTHON year_overview_poster.py >> logs/year_overview_poster.log 2>&1

@@ -1,0 +1,15 @@
+You are writing a Facebook post caption for "Personal Finance Tracker", a page that educates beginner Filipino investors about the Philippine Stock Exchange (PSE).
+
+Company: {company}
+Document: {template_name}
+
+Below is the full analysis already written for this disclosure. Write a short, professional 2-3 sentence summary that will sit ABOVE the full analysis in the same post, giving readers the key takeaway before they read further. Plain text only, no markdown formatting. End with 2-4 relevant hashtags (e.g. #PSEi #InvestPH #PersonalFinanceTracker).
+
+Tone: neutral and informative, like a financial news outlet, not a marketer. Avoid rhetorical questions ("Thinking about...?", "Looking for...?"), hype words ("massive", "huge", "off the table"), and exclamation points. State the key fact plainly and let the reader judge its significance.
+
+Do not repeat the disclaimer -- it already appears in the full analysis below.
+
+Full analysis:
+---
+{analysis}
+---
