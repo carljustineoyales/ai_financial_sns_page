@@ -22,15 +22,60 @@ MAX_ROW_SCALE = 2.0
 TITLE_BLOCK_HEIGHT = 110
 FOOTER_LINE_HEIGHT = 28
 
-BACKGROUND = "#ffffff"
-TITLE_COLOR = "#0b2545"
-SUBTITLE_COLOR = "#4a5568"
-HEADER_BG = "#0b2545"
-HEADER_TEXT = "#ffffff"
-ROW_TEXT = "#1a202c"
-ROW_ALT_BG = "#f2f5f9"
-RULE_COLOR = "#cbd5e0"
-FOOTER_COLOR = "#718096"
+# Palette follows DESIGN.md's multi-theme system: THEME picks which of the
+# two canvas modes drives every card. Trading green/red and info-blue are
+# mode-agnostic semantic tokens (DESIGN.md: "shared across both"); yellow
+# stays reserved for the wordmark accent in either mode.
+THEME = "light"
+
+PRIMARY_YELLOW = "#FCD535"
+MUTED = "#707a8a"
+MUTED_STRONG = "#929aa5"
+TRADING_UP = "#0ecb81"
+TRADING_DOWN = "#f6465d"
+INFO = "#3b82f6"
+
+CANVAS_DARK = "#0b0e11"
+SURFACE_CARD_DARK = "#1e2329"
+SURFACE_ELEVATED_DARK = "#2b3139"
+HAIRLINE_DARK = "#2b3139"
+ON_DARK = "#ffffff"
+BODY_ON_DARK = "#eaecef"
+
+CANVAS_LIGHT = "#ffffff"
+SURFACE_SOFT_LIGHT = "#fafafa"
+SURFACE_STRONG_LIGHT = "#f5f5f5"
+HAIRLINE_LIGHT = "#eaecef"
+INK = "#181a20"
+
+if THEME == "light":
+    BACKGROUND = CANVAS_LIGHT
+    TITLE_COLOR = INK
+    SUBTITLE_COLOR = MUTED_STRONG
+    HEADER_BG = SURFACE_STRONG_LIGHT
+    HEADER_TEXT = INK
+    ROW_TEXT = INK
+    ROW_ALT_BG = SURFACE_SOFT_LIGHT
+    RULE_COLOR = HAIRLINE_LIGHT
+    FOOTER_COLOR = MUTED
+    CHIP_TINT_BASE = SURFACE_SOFT_LIGHT
+    WATERMARK_TEXT_COLOR = "#f0b90b"  # primary-active -- plain primary yellow is too low-contrast on white
+else:
+    BACKGROUND = CANVAS_DARK
+    TITLE_COLOR = ON_DARK
+    SUBTITLE_COLOR = MUTED_STRONG
+    HEADER_BG = SURFACE_ELEVATED_DARK
+    HEADER_TEXT = ON_DARK
+    ROW_TEXT = BODY_ON_DARK
+    ROW_ALT_BG = SURFACE_CARD_DARK
+    RULE_COLOR = HAIRLINE_DARK
+    FOOTER_COLOR = MUTED
+    CHIP_TINT_BASE = SURFACE_ELEVATED_DARK
+    WATERMARK_TEXT_COLOR = PRIMARY_YELLOW
+
+RADIUS_SM = 4
+RADIUS_MD = 6
+RADIUS_LG = 8
 
 FONT_DIR = "/usr/share/fonts/truetype/dejavu"
 
@@ -38,7 +83,7 @@ ASSETS_LOGO_DIR = os.path.join("assets", "logos")
 
 
 WATERMARK_TEXT = "Curious Neko"
-WATERMARK_COLOR = "#a0aec0"
+WATERMARK_COLOR = WATERMARK_TEXT_COLOR
 WATERMARK_MARGIN = 16
 
 
@@ -145,7 +190,7 @@ def render_table_card(title, subtitle, rows, columns, footer_lines, output_path,
 
     col_max_width = [col_x[i + 1] - col_x[i] - 20 for i in range(len(columns))]
 
-    draw.rectangle([PADDING, y, WIDTH - PADDING, y + header_row_height], fill=HEADER_BG)
+    draw.rounded_rectangle([PADDING, y, WIDTH - PADDING, y + header_row_height], radius=RADIUS_SM, fill=HEADER_BG)
     for i, (key, label, _) in enumerate(columns):
         text = _truncate_to_width(draw, label, header_font, col_max_width[i])
         draw.text((col_x[i] + 12, y + header_text_y_offset), text, font=header_font, fill=HEADER_TEXT)
@@ -214,12 +259,19 @@ def _load_logo(symbol, size):
     return logo
 
 
-def _lighten(hex_color, amount=0.82):
+def _tint_chip(hex_color, amount=0.82, base=CHIP_TINT_BASE):
+    """Blends hex_color toward `base` -- the current theme's own chip
+    surface tone (a dark elevated surface in dark mode, a soft-light
+    surface in light mode) -- so status chips read as a tinted pill that
+    matches the canvas instead of a fixed pastel meant for one mode only.
+    """
     hex_color = hex_color.lstrip("#")
+    base = base.lstrip("#")
     r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
-    r = int(r + (255 - r) * amount)
-    g = int(g + (255 - g) * amount)
-    b = int(b + (255 - b) * amount)
+    br, bg, bb = int(base[0:2], 16), int(base[2:4], 16), int(base[4:6], 16)
+    r = int(r + (br - r) * amount)
+    g = int(g + (bg - g) * amount)
+    b = int(b + (bb - b) * amount)
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
@@ -232,7 +284,7 @@ def _draw_chip(image, draw, x, y, text, font, color, symbol=None):
             logo_offset = CHIP_HEIGHT + LOGO_GAP
 
     chip_x = x + logo_offset
-    bg = _lighten(color)
+    bg = _tint_chip(color)
     text_width = draw.textlength(text, font=font)
     chip_width = text_width + 2 * CHIP_PADDING_X
     draw.rounded_rectangle(
@@ -281,7 +333,7 @@ def render_month_calendar(year, month, events_by_day, title, subtitle, footer_li
 
     y = _draw_title_header(draw, title, subtitle, title_font, subtitle_font)
 
-    draw.rectangle([PADDING, y, WIDTH - PADDING, y + weekday_header_height], fill=HEADER_BG)
+    draw.rounded_rectangle([PADDING, y, WIDTH - PADDING, y + weekday_header_height], radius=RADIUS_SM, fill=HEADER_BG)
     for i, label in enumerate(WEEKDAY_LABELS):
         cx = PADDING + i * col_width
         draw.text((cx + 10, y + 8), label, font=weekday_font, fill=HEADER_TEXT)
@@ -290,7 +342,7 @@ def render_month_calendar(year, month, events_by_day, title, subtitle, footer_li
     for week in weeks:
         for i, day in enumerate(week):
             cx = PADDING + i * col_width
-            draw.rectangle([cx, y, cx + col_width, y + cell_height], outline=RULE_COLOR, width=1)
+            draw.rectangle([cx, y, cx + col_width, y + cell_height], outline=RULE_COLOR, width=1, fill=ROW_ALT_BG)
             if day == 0:
                 continue
 
@@ -328,10 +380,15 @@ def render_month_calendar(year, month, events_by_day, title, subtitle, footer_li
     return output_path
 
 
+# Trading-semantic status colors: PAID reuses trading-up green (settled,
+# positive), UPCOMING reuses info blue (neutral/future), EX-DATE PASSED
+# stays a neutral muted tone rather than primary yellow -- yellow is
+# reserved for the single wordmark accent per DESIGN.md, not repeated
+# per-row status borders.
 STATUS_COLORS = {
-    "PAID": "#1baf7a",
-    "EX-DATE PASSED": "#eda100",
-    "UPCOMING": "#2a78d6",
+    "PAID": TRADING_UP,
+    "EX-DATE PASSED": MUTED_STRONG,
+    "UPCOMING": INFO,
 }
 
 
@@ -609,7 +666,7 @@ def render_year_overview(year, months_data, title, subtitle, footer_lines, outpu
 
         symbols = months_data.get(month, [])
 
-        draw.rectangle([bx, by, bx + col_width, by + row_height], outline=RULE_COLOR, width=1, fill=BACKGROUND)
+        draw.rectangle([bx, by, bx + col_width, by + row_height], outline=RULE_COLOR, width=1, fill=ROW_ALT_BG)
         month_label = MONTH_LABELS[month - 1]
         month_label_w = draw.textlength(month_label, font=month_font)
         draw.text((bx + (col_width - month_label_w) / 2, by + 7), month_label, font=month_font, fill=TITLE_COLOR)
@@ -640,29 +697,25 @@ def render_year_overview(year, months_data, title, subtitle, footer_lines, outpu
         remaining = len(symbols) - len(shown_symbols)
         n_shown = len(shown_symbols)
 
-        # Fixed cell size (sized to fit a 2x2 grid, the densest case at
-        # MAX_LOGOS_PER_MONTH_BOX) so a single-logo month doesn't blow its
-        # one logo up to fill the whole box -- every month's logos render
-        # at the same scale, just with fewer grid cells used. Each row
-        # also reserves room for a ticker label under the logo (skipped
-        # for text-fallback cells, since the cell's text already is the
-        # ticker), so the row unit is logo_cell + label_gap + label_height.
-        # col_gap/row_gap are separate (not one shared cell_gap) since the
-        # body zone has much more width to spare than height -- a bigger
-        # row_gap would shrink logo_cell enough to truncate ticker labels.
-        col_gap = 14
+        # Fixed cell size (sized to fit a single row of MAX_LOGOS_PER_MONTH_BOX,
+        # the densest case) so a single-logo month doesn't blow its one logo
+        # up to fill the whole box -- every month's logos render at the same
+        # scale, just with fewer grid cells used. The label under each logo
+        # (skipped for text-fallback cells, since the cell's text already is
+        # the ticker) makes the row unit logo_cell + label_gap + label_height.
+        col_gap = 8
         row_gap = 6
         label_gap = 3
         label_height = 11
         logo_cell = int(min(
-            (body_width - col_gap) / 2,
-            (body_height - row_gap) / 2 - (label_gap + label_height),
+            (body_width - (MAX_LOGOS_PER_MONTH_BOX - 1) * col_gap) / MAX_LOGOS_PER_MONTH_BOX,
+            body_height - (label_gap + label_height),
         ))
         logo_cell = max(logo_cell, 16)
         row_unit = logo_cell + label_gap + label_height
 
-        grid_cols = min(2, n_shown)
-        grid_rows = math.ceil(n_shown / grid_cols)
+        grid_cols = n_shown
+        grid_rows = 1
         grid_w = grid_cols * logo_cell + (grid_cols - 1) * col_gap
         grid_h = grid_rows * row_unit + (grid_rows - 1) * row_gap
         start_x = content_cx - grid_w / 2
@@ -675,7 +728,12 @@ def render_year_overview(year, months_data, title, subtitle, footer_lines, outpu
             logo = _load_logo(symbol, logo_cell)
             if logo:
                 image.paste(logo, (int(lx), int(ly)), logo)
-                ticker_text = _truncate_to_width(draw, symbol, ticker_font, logo_cell)
+                # Label width allowance is wider than the (now smaller)
+                # logo cell itself, using half the column gap on each side
+                # as slack -- otherwise shrinking the logo starves the
+                # ticker label and every symbol past 3 characters truncates.
+                label_max_width = logo_cell + col_gap
+                ticker_text = _truncate_to_width(draw, symbol, ticker_font, label_max_width)
                 ticker_w = draw.textlength(ticker_text, font=ticker_font)
                 draw.text(
                     (lx + (logo_cell - ticker_w) / 2, ly + logo_cell + label_gap),
@@ -755,7 +813,7 @@ def render_ticker_logo_grid(title, subtitle, symbols, footer_lines, output_path)
         col_track_width,
         (available_height - (rows - 1) * row_gap) / rows - (label_gap + label_height),
         max_logo_cell,
-    )
+    ) * 0.7
     logo_cell = max(int(logo_cell), 16)
     row_unit = logo_cell + label_gap + label_height
     top_margin = 0
@@ -781,7 +839,8 @@ def render_ticker_logo_grid(title, subtitle, symbols, footer_lines, output_path)
         logo = _load_logo(symbol, logo_cell)
         if logo:
             image.paste(logo, (int(lx), int(ly)), logo)
-            ticker_text = _truncate_to_width(draw, symbol, ticker_font, logo_cell)
+            label_max_width = logo_cell + col_gap
+            ticker_text = _truncate_to_width(draw, symbol, ticker_font, label_max_width)
             ticker_w = draw.textlength(ticker_text, font=ticker_font)
             draw.text(
                 (lx + (logo_cell - ticker_w) / 2, ly + logo_cell + label_gap),

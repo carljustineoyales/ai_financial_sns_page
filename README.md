@@ -21,6 +21,10 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   REIT watchlist.
 
 Shared watchlist/date-range helpers live in [dividend_tracker.py](dividend_tracker.py).
+Graphic cards (dividend calendars, year overview) are rendered to PNG via
+[renderer.py](renderer.py) (Pillow, DejaVu Sans, deliberately simple utility
+graphics rather than polished design). [assets_logos.py](assets_logos.py)
+downloads/caches company logos used on those cards into `assets/logos/`.
 
 ## Setup
 
