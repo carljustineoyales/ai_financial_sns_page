@@ -14,21 +14,21 @@ CATEGORIES = {
         "subtitle": "Today's biggest price gains, PSE-wide",
         "value_key": "percent_change",
         "value_label": "% Change",
-        "hashtags": "#PSE #InvestPH #PersonalFinanceTracker #TopGainers",
+        "hashtags": "#PSE #InvestPH #TopGainers",
     },
     "losers": {
         "title": "TOP 10 LOSERS",
         "subtitle": "Today's biggest price drops, PSE-wide",
         "value_key": "percent_change",
         "value_label": "% Change",
-        "hashtags": "#PSE #InvestPH #PersonalFinanceTracker #TopLosers",
+        "hashtags": "#PSE #InvestPH #TopLosers",
     },
     "most_active": {
         "title": "TOP 10 MOST ACTIVE",
         "subtitle": "Today's highest trading volume, PSE-wide",
         "value_key": "volume",
         "value_label": "Volume",
-        "hashtags": "#PSE #InvestPH #PersonalFinanceTracker #MostActive",
+        "hashtags": "#PSE #InvestPH #MostActive",
     },
 }
 
