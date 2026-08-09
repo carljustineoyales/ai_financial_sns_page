@@ -22,23 +22,19 @@ def _growth_pct(entry, prior_entry):
 
 
 def build_declaration_card(symbol, entry, prior_entry, output_path):
-    title = f"{symbol} DIVIDEND DECLARATION"
-    subtitle = f"{entry['dividend_type']} dividend, {entry['security_type']}"
-
-    rows = []
     growth = _growth_pct(entry, prior_entry)
-    if growth is not None:
-        direction = "higher" if growth >= 0 else "lower"
-        rows.append({"metric": "vs. ~1 year ago", "value": f"{abs(growth):.2f}% {direction}"})
-    rows.append({"metric": "Dividend Rate", "value": entry["dividend_rate"]})
-    rows.append({"metric": "Ex-Dividend Date", "value": entry["ex_dividend_date"]})
-    rows.append({"metric": "Record Date", "value": entry["record_date"]})
-    rows.append({"metric": "Payment Date", "value": entry["payment_date"]})
-
-    columns = [("metric", "Metric", 0.5), ("value", "Value", 0.5)]
     footer_lines = [DISCLAIMER]
 
-    return renderer.render_table_card(title, subtitle, rows, columns, footer_lines, output_path)
+    return renderer.render_declaration_card(
+        symbol,
+        entry["dividend_type"],
+        _format_rate(entry["dividend_rate"]),
+        entry["ex_dividend_date"],
+        entry["payment_date"],
+        growth,
+        footer_lines,
+        output_path,
+    )
 
 
 def _format_rate(rate_text):
