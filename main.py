@@ -6,13 +6,13 @@ import json
 import os
 import re
 import sys
-from datetime import date, datetime, timezone
+from datetime import date
 
 from dotenv import load_dotenv
 
 import llm
 from analysis.analyzer import analyze, extract_text, generate_caption
-from posters.facebook import post_to_page
+from posters.preview_and_post import preview_and_post_text
 from scraper.pse_edge import (
     download_pdf,
     get_latest_financial_reports,
@@ -149,30 +149,10 @@ def main():
     if hashtags:
         post_body += f"\n\n{hashtags}"
 
-    print("\n" + "-" * 60)
-    print("POST PREVIEW")
-    print("-" * 60)
-    print(post_body)
-    print("-" * 60)
-
-    post_mode = os.environ.get("POST_MODE", "confirm")
-    if post_mode == "confirm":
-        answer = input("\nPost this to Facebook? [y/N]: ").strip().lower()
-        if answer != "y":
-            print("Not posted.")
-            return
-
-    print("Posting to Facebook...")
     try:
-        post_id = post_to_page(post_body)
+        preview_and_post_text(post_body, posted_marker)
     except Exception as e:
         _fail("posting to Facebook", e)
-    print(f"Posted. Post id: {post_id}")
-
-    with open(posted_marker, "w") as f:
-        json.dump(
-            {"post_id": post_id, "posted_at": datetime.now(timezone.utc).isoformat()}, f
-        )
 
 
 if __name__ == "__main__":

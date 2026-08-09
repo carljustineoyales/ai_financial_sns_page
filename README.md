@@ -8,7 +8,8 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
 
 - **Financial report disclosures** ([main.py](main.py)) — scrapes the latest PSE
   Edge financial report disclosure, extracts and analyzes the filing with an
-  LLM, generates a caption, and posts it to Facebook.
+  LLM, generates a caption, and posts it to Facebook as a text-only post via
+  `posters.preview_and_post.preview_and_post_text()`.
 - **Market movers** ([scraper/market_movers.py](scraper/market_movers.py)) —
   computes end-of-day gainers/losers/most active. No standalone cron entry
   — `market_movers_poster.py` and `financial_report_cards.py` both call
@@ -16,17 +17,23 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   snapshot itself on a cache miss, so a dedicated "just compute and cache"
   job would be redundant. Still runnable standalone
   (`python -m scraper.market_movers`) for an ad hoc refresh.
+- **Market movers graphics** ([market_movers_graphics.py](market_movers_graphics.py)) —
+  builds the Top 10 Gainers, Top 10 Losers, and Top 10 Most Active cards and
+  their captions, market-wide. No dependency on `posters.facebook` — same
+  "renderable/previewable without a Facebook post ever being possible"
+  guarantee as `dividend_graphics.py`. Captions are deterministic string
+  templates, not LLM-generated — this is just formatted facts, no analysis
+  involved.
 - **Market movers poster** ([market_movers_poster.py](market_movers_poster.py)) —
-  builds and posts a Top 10 Gainers, Top 10 Losers, and Top 10 Most Active
-  graphic (one post each), market-wide. Shares a same-day cached movers
-  snapshot with `financial_report_cards.py` via
+  calls into `market_movers_graphics.py` to build each of the 3 cards, then
+  previews/confirms and posts each separately. Shares a same-day cached
+  movers snapshot with `financial_report_cards.py` via
   `scraper.market_movers.get_or_compute_movers()` — whichever of the two
   scripts runs first for the day computes it live and caches it to
   `output/market_movers/`; the other reads that cache, so both reference
   the exact same top-10 lists without needing a particular run order, and
   the live scrape only happens once per day regardless of which script
-  triggers it. Captions are deterministic string templates, not
-  LLM-generated — this is just formatted facts, no analysis involved.
+  triggers it.
 - **Market calendar** ([scraper/market_calendar.py](scraper/market_calendar.py)) —
   refreshes dividends/SROs/meetings/listings for the current month.
 - **Dividend graphics** ([dividend_graphics.py](dividend_graphics.py)) —
@@ -39,6 +46,11 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   (`month`/`year`) that calls into `dividend_graphics.py` to build the card,
   then previews/confirms and posts it to Facebook. The only module with a
   `posters.facebook` dependency for this pipeline.
+- **Financial report graphics** ([financial_report_graphics.py](financial_report_graphics.py)) —
+  builds a single company's report-card image from its already-extracted/
+  computed figures (`METRIC_ORDER` controls row priority so the most
+  informative fields survive if the fixed-canvas table has to truncate). No
+  dependency on `posters.facebook`, no LLM call — pure rendering.
 - **Financial report cards** ([financial_report_cards.py](financial_report_cards.py)) —
   for every company in today's top 10 gainers/losers/most-active (same
   cached snapshot `market_movers_poster.py` uses, via
@@ -50,23 +62,26 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   Selection Criteria for why REITs get different fields). Computes a few
   simple ratios from those stated figures in Python (never via the LLM —
   margins, current ratio, D/E, ROE/ROA, asset turnover, and P/E/P/B using
-  a live price fetch), renders a report-card graphic, and posts it — the
-  caption always states the filing's actual announce date, since a top
-  mover's most recent report may be from an earlier quarter, not today.
-  Triggered mechanically by "they're a top mover today" — a factual,
-  rules-based criterion (rank by price/volume), the same category as the
-  filing-based trigger this replaced, never selected by whether the
-  figures look good. Runs after market close, since gainers/losers/most-
-  active are end-of-day rankings. Deliberately overlaps with `main.py`'s
-  coverage (narrative vs. structured figures, different trigger) rather
-  than replacing it.
+  a live price fetch), calls into `financial_report_graphics.py` to build
+  the card, then previews/confirms and posts it — the caption always
+  states the filing's actual announce date, since a top mover's most
+  recent report may be from an earlier quarter, not today. Triggered
+  mechanically by "they're a top mover today" — a factual, rules-based
+  criterion (rank by price/volume), the same category as the filing-based
+  trigger this replaced, never selected by whether the figures look good.
+  Runs after market close, since gainers/losers/most-active are end-of-day
+  rankings. Deliberately overlaps with `main.py`'s coverage (narrative vs.
+  structured figures, different trigger) rather than replacing it.
 
 Shared watchlist/date-range helpers live in [dividend_tracker.py](dividend_tracker.py).
-The `preview_and_post` confirm/post/record flow shared by
+The preview/confirm/post/record flow shared across every poster lives in
+[posters/preview_and_post.py](posters/preview_and_post.py):
+`preview_and_post()` (image+caption, via `post_photo`) is used by
 [dividend_posters.py](dividend_posters.py),
 [market_movers_poster.py](market_movers_poster.py), and
-[financial_report_cards.py](financial_report_cards.py) lives in
-[posters/preview_and_post.py](posters/preview_and_post.py).
+[financial_report_cards.py](financial_report_cards.py);
+`preview_and_post_text()` (text only, via `post_to_page`) is used by
+[main.py](main.py).
 Graphic cards (dividend calendars, year overview) are rendered to PNG via the
 [rendering/](rendering/) package (Pillow, DejaVu Sans, deliberately simple
 utility graphics rather than polished design) — `theme.py` holds the palette
@@ -78,6 +93,12 @@ script. Rendering reads whatever's already cached and silently renders
 without a logo for anything missing, so a cron run never triggers an
 unattended download+decode of an externally-hosted image. Run
 `python assets_logos.py SYM1 SYM2 ...` or `--all` to backfill the cache.
+Both the download step (`assets_logos.py`) and the render step
+(`rendering/primitives.py`'s `_load_logo()`) reject any logo image over
+`MAX_LOGO_SOURCE_PIXELS` (4M pixels — generous for an icon, well under
+Pillow's own 89M-pixel bomb-detection threshold) rather than decode it —
+an oversized/corrupted download is deleted immediately instead of
+lingering in the cache.
 
 ## Pipeline
 
@@ -104,9 +125,9 @@ flowchart TD
     SHARED[("scraper.market_movers.get_or_compute_movers()\ncache: output/market_movers/&lt;date&gt;.json\n(no standalone cron -- computed live by\nwhichever of MoversPoster/ReitCards runs first;\npython -m scraper.market_movers still works ad hoc)")]
     PSE --> SHARED
 
-    subgraph MoversPoster["Market movers poster — market_movers_poster.py"]
+    subgraph MoversPoster["Market movers poster — market_movers_poster.py\n+ market_movers_graphics.py (no FB dependency)"]
         MP1["Get today's top-10\ngainers/losers/most-active"]
-        MP2["Render 3 table cards\n+ deterministic caption (no LLM)"]
+        MP2["market_movers_graphics.py:\nbuild_movers_card / build_movers_caption\n(deterministic caption, no LLM)"]
         MP1 --> MP2
     end
     SHARED --> MP1
@@ -114,13 +135,13 @@ flowchart TD
     MP2 --> MPPNG[(3x Rendered PNG card)]
     MP2 --> MPCAP[3x Caption]
 
-    subgraph ReitCards["Financial report cards — financial_report_cards.py"]
+    subgraph ReitCards["Financial report cards — financial_report_cards.py\n+ financial_report_graphics.py (no FB dependency)"]
         RC0["Get today's top-10\ngainers/losers/most-active,\nunion + dedup symbols"]
         RC1["Per top mover: fetch their most\nrecent financial report on file,\nany age (get_company_financial_reports)"]
         RC2[Extract text]
         RC3["Extract stated figures with LLM\n(each as {stated, value};\nREIT-only fields when filer is a REIT)"]
         RC6["Compute ratios in Python, not LLM\n(margins, current ratio, D/E, ROE/ROA;\nP/E, P/B via live price fetch)"]
-        RC4[Render report-card table image]
+        RC4["financial_report_graphics.py:\nbuild_report_card"]
         RC5["Generate factual caption\n(states filing date; no buy/sell/consider language)"]
         RC0 --> RC1 --> RC2 --> RC3 --> RC6 --> RC4
         RC6 --> RC5
@@ -143,9 +164,10 @@ flowchart TD
     end
     OUT2 --> WL
 
-    subgraph Posting["Posting — dividend_posters.py / market_movers_poster.py / financial_report_cards.py"]
+    subgraph Posting["Posting — posters/preview_and_post.py"]
         P1[main_month / main_year /\n_process_category /\n_process_disclosure]
-        P2["preview_and_post()\n(posters/preview_and_post.py)"]
+        P2["preview_and_post()\n(image + caption, via post_photo)"]
+        P3["preview_and_post_text()\n(text only, via post_to_page)"]
         P1 --> P2
     end
     PNG --> P1
@@ -153,9 +175,10 @@ flowchart TD
     MPCAP --> P1
     RCPNG --> P1
     RCCAP --> P1
+    D4 --> P3
 
     FB[(Facebook Page)]
-    D4 -- post_to_page --> FB
+    P3 -- post_to_page --> FB
     P2 -- post_photo --> FB
 ```
 

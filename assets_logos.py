@@ -15,6 +15,9 @@ import json
 import os
 import sys
 
+from PIL import Image
+
+from rendering.primitives import MAX_LOGO_SOURCE_PIXELS
 from scraper import pse_edge
 from scraper.market_movers import COMPANY_DIRECTORY_CACHE, refresh_company_directory
 
@@ -37,8 +40,11 @@ def _cmpy_id_for_symbol(symbol):
 
 def get_logo_path(symbol):
     """Returns the local path to symbol's logo PNG, downloading and caching
-    it on first use. Returns None (without creating a file) if no logo could
-    be found or downloaded, so callers can fall back to text-only rendering.
+    it on first use. Returns None (without creating a file, or removing one
+    it just downloaded) if no logo could be found or downloaded, or if the
+    downloaded image exceeds MAX_LOGO_SOURCE_PIXELS -- an oversized/
+    corrupted file never lingers in the cache; callers fall back to
+    text-only rendering.
     """
     dest_path = os.path.join(LOGO_DIR, f"{symbol}.png")
     if os.path.exists(dest_path):
@@ -55,6 +61,13 @@ def get_logo_path(symbol):
 
         os.makedirs(LOGO_DIR, exist_ok=True)
         pse_edge.download_image(logo_url, dest_path)
+
+        with Image.open(dest_path) as im:
+            if im.width * im.height > MAX_LOGO_SOURCE_PIXELS:
+                os.remove(dest_path)
+                print(f"{symbol}: downloaded logo is {im.width}x{im.height}, over the size cap -- discarded.")
+                return None
+
         return dest_path
     except Exception:
         return None

@@ -100,6 +100,11 @@ def _wrap_to_width(draw, text, font, max_width, max_lines=2):
 
 _logo_cache = {}
 
+# Generous for an icon-sized company logo (2000x2000), well under Pillow's
+# own 89M-pixel DecompressionBombWarning threshold -- catches an
+# oversized/corrupted download before Pillow's own safety check would.
+MAX_LOGO_SOURCE_PIXELS = 4_000_000
+
 
 def _load_logo(symbol, size):
     cache_key = (symbol, size)
@@ -110,11 +115,13 @@ def _load_logo(symbol, size):
     logo = None
     if os.path.exists(path):
         try:
-            source = Image.open(path).convert("RGBA")
-            source.thumbnail((size, size), Image.LANCZOS)
-            logo = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-            offset = ((size - source.width) // 2, (size - source.height) // 2)
-            logo.paste(source, offset, source)
+            source = Image.open(path)
+            if source.width * source.height <= MAX_LOGO_SOURCE_PIXELS:
+                source = source.convert("RGBA")
+                source.thumbnail((size, size), Image.LANCZOS)
+                logo = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+                offset = ((size - source.width) // 2, (size - source.height) // 2)
+                logo.paste(source, offset, source)
         except Exception:
             logo = None
 
