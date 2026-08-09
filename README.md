@@ -10,19 +10,23 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   Edge financial report disclosure, extracts and analyzes the filing with an
   LLM, generates a caption, and posts it to Facebook.
 - **Market movers** ([scraper/market_movers.py](scraper/market_movers.py)) —
-  computes end-of-day gainers/losers/most active and caches them to `output/`.
+  computes end-of-day gainers/losers/most active. No standalone cron entry
+  — `market_movers_poster.py` and `financial_report_cards.py` both call
+  its `get_or_compute_movers()`, which computes and caches the live
+  snapshot itself on a cache miss, so a dedicated "just compute and cache"
+  job would be redundant. Still runnable standalone
+  (`python -m scraper.market_movers`) for an ad hoc refresh.
 - **Market movers poster** ([market_movers_poster.py](market_movers_poster.py)) —
   builds and posts a Top 10 Gainers, Top 10 Losers, and Top 10 Most Active
   graphic (one post each), market-wide. Shares a same-day cached movers
   snapshot with `financial_report_cards.py` via
   `scraper.market_movers.get_or_compute_movers()` — whichever of the two
-  scripts (or `scraper/market_movers.py`'s own cron job) runs first for
-  the day computes it live and caches it to `output/market_movers/`; the
-  rest read that cache, so all three reference the exact same top-10
-  lists without needing a particular run order, and the live scrape only
-  happens once per day regardless of which script triggers it. Captions
-  are deterministic string templates, not LLM-generated — this is just
-  formatted facts, no analysis involved.
+  scripts runs first for the day computes it live and caches it to
+  `output/market_movers/`; the other reads that cache, so both reference
+  the exact same top-10 lists without needing a particular run order, and
+  the live scrape only happens once per day regardless of which script
+  triggers it. Captions are deterministic string templates, not
+  LLM-generated — this is just formatted facts, no analysis involved.
 - **Market calendar** ([scraper/market_calendar.py](scraper/market_calendar.py)) —
   refreshes dividends/SROs/meetings/listings for the current month.
 - **Dividend graphics** ([dividend_graphics.py](dividend_graphics.py)) —
@@ -86,18 +90,14 @@ flowchart TD
     end
     PSE --> D1
 
-    subgraph MarketData["Market data refresh"]
-        M1["scraper/market_movers.py\ngainers / losers / most active"]
+    subgraph MarketData["Market calendar data refresh"]
         M2["scraper/market_calendar.py\ndividends / SROs / meetings / listings"]
-        OUT1[(output/*.json)]
         OUT2[(output/market_calendar/*.json)]
-        M1 --> OUT1
         M2 --> OUT2
     end
-    PSE --> M1
     PSE --> M2
 
-    SHARED[("get_or_compute_movers()\ncache: output/market_movers/&lt;date&gt;.json\n(computed live by whichever script runs first)")]
+    SHARED[("scraper.market_movers.get_or_compute_movers()\ncache: output/market_movers/&lt;date&gt;.json\n(no standalone cron -- computed live by\nwhichever of MoversPoster/ReitCards runs first;\npython -m scraper.market_movers still works ad hoc)")]
     PSE --> SHARED
 
     subgraph MoversPoster["Market movers poster — market_movers_poster.py"]

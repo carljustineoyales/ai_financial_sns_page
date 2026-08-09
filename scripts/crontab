@@ -15,11 +15,13 @@ PYTHON=/home/cjoyales/personal/ai_financial_sns_page/.venv/bin/python
 # Facebook posting before enabling this line.
 */30 9-15 * * 1-5 cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_main.lock $PYTHON main.py >> logs/main.log 2>&1
 
-# Market movers (gainers/losers/most active): needs final end-of-day prices,
-# so it runs after the 3:30pm close. Uses PSE's own pre-computed top-10
-# snapshot (frames.pse.com.ph) plus ~30 targeted lookups -- seconds, not
-# minutes.
-0 16 * * 1-5 cd $PROJECT_DIR && mkdir -p logs && flock -n /tmp/ai_fsns_market_movers.lock $PYTHON -m scraper.market_movers >> logs/market_movers.log 2>&1
+# Market movers (gainers/losers/most active) has no standalone cron entry
+# anymore -- market_movers_poster.py and financial_report_cards.py below
+# both call scraper.market_movers.get_or_compute_movers(), which computes
+# the live snapshot and caches it itself on a cache miss. A dedicated
+# "just compute and cache" job would only be redundant work at this point.
+# Run `python -m scraper.market_movers` manually if you ever want to
+# refresh the company directory or force a fresh snapshot ad hoc.
 
 # Market calendar (dividends/SROs/meetings/listings): cheap single-page
 # fetch, refreshed daily for the current month.
@@ -38,9 +40,9 @@ PYTHON=/home/cjoyales/personal/ai_financial_sns_page/.venv/bin/python
 # needs final end-of-day prices, so it runs after the 3:30pm close. Shares
 # a same-day cached movers snapshot with financial_report_cards.py below
 # via scraper.market_movers.get_or_compute_movers() -- whichever of the
-# three market-movers-related jobs on this page runs first for the day
-# computes it live and caches it, the rest read that cache, so run order
-# between them doesn't matter and the live scrape only happens once.
+# two jobs runs first for the day computes it live and caches it, the
+# other reads that cache, so run order between them doesn't matter and
+# the live scrape only happens once.
 10 16 * * 1-5 cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_market_movers_poster.lock $PYTHON market_movers_poster.py >> logs/market_movers_poster.log 2>&1
 
 # Financial report cards: mechanical trigger, posts a figures table for
