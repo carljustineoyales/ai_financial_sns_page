@@ -4,9 +4,8 @@ Deliberately simple -- these are Facebook utility graphics (dividend
 schedules, etc.), not polished design artifacts. Uses DejaVu Sans, which
 ships system-wide on this machine, so no font file needs to be bundled --
 DESIGN.md's own font-substitute note names Inter as the closest open
-substitute for both of the brand's faces, and DejaVu Sans (a similar
-humanist grotesque) stands in for that without requiring a bundled font
-file.
+substitute for Geist Sans, and DejaVu Sans (a similar humanist grotesque)
+stands in for that without requiring a bundled font file.
 """
 
 import os
@@ -33,28 +32,30 @@ BODY_FOOTER_GAP = 18
 # PADDING-sized clearance underneath it.
 FOOTER_BOTTOM_MARGIN = 24
 
-# Palette follows DESIGN.md's warm-cream Zapier-style system (single
-# canvas mode -- the doc doesn't define a dark theme, so the old
-# light/dark THEME switch is dropped along with it). Functional status
-# colors (paid/upcoming/passed chips, trading-style up/down cues) aren't
-# part of the brand palette -- DESIGN.md's "Semantic" section explicitly
-# says the brand borrows its ink/orange hierarchy instead of a status
-# palette, but this app needs three genuinely distinguishable colors to
-# tell dividend statuses apart at a glance, so those keep their own
-# independent, non-brand hues.
-PRIMARY_ORANGE = "#ff4f00"
-TRADING_UP = "#0ecb81"
-TRADING_DOWN = "#f6465d"
-INFO = "#3b82f6"
+# Palette follows DESIGN.md's Vercel-Geist system (single canvas mode --
+# the doc doesn't define a dark theme, so there's no light/dark switch).
+# Functional status colors (paid/upcoming/passed chips, trading-style
+# up/down cues) aren't part of the brand palette -- DESIGN.md's own
+# "Semantic" section only defines Error/Warning plus "Success maps to
+# {colors.link}" (no distinct green), so a couple of these still need
+# independent, non-brand hues to stay genuinely distinguishable at a
+# glance; where Geist *does* define a matching semantic token (Error,
+# Link) those are used directly instead of an arbitrary hex.
+ACCENT = "#0070f3"  # Vercel Blue -- Geist's only chromatic accent; "primary" merges into ink itself, no separate CTA color exists
+TRADING_UP = "#0ecb81"  # independent, non-brand -- Geist has no green; financial up/positive needs a real one
+TRADING_DOWN = "#ee0000"  # Geist's own Error red -- doubles as the financial down/negative cue
+INFO = ACCENT  # Geist: "Success maps to {colors.link}" -- the same blue is both accent and positive/active signal
 
-CANVAS = "#fffefb"
-CANVAS_SOFT = "#f8f4f0"
-MUTE = "#c5c0b1"
-BODY_MID = "#939084"
-BODY = "#605d52"
-INK_MID = "#36342e"
-INK_SOFT = "#2f2a26"
-INK = "#201515"
+CANVAS = "#fafafa"
+CANVAS_SOFT = "#f2f2f2"  # Geist's hairline-soft: "faintest grey fill for subtle alternating panels and inset wells"
+HAIRLINE = "#ebebeb"  # Geist's own token for "the 1px border on every card, input, and divider -- the structural workhorse"
+MUTE = "#8f8f8f"
+FAINT = "#a1a1a1"
+BODY = "#4d4d4d"
+INK_MID = BODY  # Geist's 4-step ladder (ink/body/mute/faint) has no separate mid-emphasis tier
+INK_SOFT = "#171717"
+INK = "#171717"
+BODY_MID = MUTE  # Geist's own "lower-emphasis captions... metadata" role
 
 BACKGROUND = CANVAS
 TITLE_COLOR = INK
@@ -63,15 +64,15 @@ HEADER_BG = CANVAS_SOFT
 HEADER_TEXT = INK
 ROW_TEXT = INK
 ROW_ALT_BG = CANVAS_SOFT
-RULE_COLOR = MUTE
-SECTION_RULE_COLOR = BODY_MID
+RULE_COLOR = HAIRLINE
+SECTION_RULE_COLOR = HAIRLINE
 FOOTER_COLOR = BODY
 CHIP_TINT_BASE = CANVAS_SOFT
-WATERMARK_TEXT_COLOR = PRIMARY_ORANGE
+WATERMARK_TEXT_COLOR = ACCENT
 
-# DESIGN.md: "{rounded.md} 12px for buttons and cards -- the brand's
-# middle-radius signature", a single uniform radius rather than the old
-# tiered small/medium/large scale.
+# DESIGN.md: "{rounded.md} 12px -- feature cards, code blocks" -- same
+# 12px value the old Zapier system also used, so this didn't need to
+# change even though the underlying brand did.
 RADIUS_CARD = 12
 
 FONT_DIR = "/usr/share/fonts/truetype/dejavu"
@@ -82,10 +83,10 @@ WATERMARK_TEXT = "Purrfolio"
 WATERMARK_COLOR = WATERMARK_TEXT_COLOR
 
 # Trading-semantic status colors: PAID reuses trading-up green (settled,
-# positive), UPCOMING reuses info blue (neutral/future), EX-DATE PASSED
-# stays a neutral muted tone rather than primary yellow -- yellow is
-# reserved for the single wordmark accent per DESIGN.md, not repeated
-# per-row status borders.
+# positive), UPCOMING reuses info/accent blue (neutral/future), EX-DATE
+# PASSED stays a neutral muted tone rather than the accent blue -- the
+# accent is reserved for the wordmark and small emphasis per DESIGN.md,
+# not repeated per-row status borders.
 STATUS_COLORS = {
     "PAID": TRADING_UP,
     "EX-DATE PASSED": BODY_MID,

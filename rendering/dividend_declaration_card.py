@@ -1,15 +1,16 @@
 """render_declaration_card: a punchier, single-declaration hero card --
 big ticker + type, a colored growth line, the rate as a hero number, and
 two date pills. Structurally inspired by a reference competitor card, but
-built entirely from this project's own Zapier-style warm-cream palette
-(rendering/theme.py) and rounded.pill token (DESIGN.md), not the
-reference's photo background or branding.
+built entirely from this project's own brand palette (rendering/theme.py,
+sourced from DESIGN.md) and rounded.pill token, not the reference's photo
+background or branding.
 """
 
 from PIL import Image, ImageDraw
 
-from .primitives import _draw_watermark_inline, _font, _truncate_to_width
+from .primitives import _draw_watermark_inline, _font, _truncate_to_width, _wrap_to_width
 from .theme import (
+    ACCENT,
     BACKGROUND,
     CANVAS_SOFT,
     FOOTER_BOTTOM_MARGIN,
@@ -19,7 +20,6 @@ from .theme import (
     INK,
     INK_SOFT,
     PADDING,
-    PRIMARY_ORANGE,
     RADIUS_CARD,
     SECTION_RULE_COLOR,
     SUBTITLE_COLOR,
@@ -34,10 +34,10 @@ PILL_GROUP_GAP = 20
 
 
 def _draw_date_pill(draw, x, y, width, date_text, label_text, date_font, label_font):
-    """A dark rounded-9999px pill holding the date, with its label to the
-    right -- the same two-part row shape as the reference image's
-    ex-date/payment-date rows, in this project's own ink/cream palette
-    instead of the reference's coral/cream.
+    """A dark rounded-pill holding the date, with its label to the right
+    -- the same two-part row shape as the reference image's ex-date/
+    payment-date rows, in this project's own ink/canvas palette instead
+    of the reference's coral/cream.
     """
     pill_width = 190
     draw.rounded_rectangle([x, y, x + pill_width, y + PILL_HEIGHT], radius=PILL_HEIGHT / 2, fill=INK)
@@ -51,6 +51,24 @@ def _draw_date_pill(draw, x, y, width, date_text, label_text, date_font, label_f
     draw.text((label_x, y + (PILL_HEIGHT - 24) / 2), label_text, font=label_font, fill=INK_SOFT)
 
 
+def _fit_rate_lines(draw, rate_text, max_width):
+    """PSE's own rate text ranges from a short number ("PhP11.758 per
+    share") to a full verbose preferred-share description running 100+
+    characters. Rather than truncating the long ones with an ellipsis
+    (losing the actual rate terms), try the big hero-number size first on
+    one line, and only drop to a smaller size + wrap (up to 3 lines) when
+    it doesn't fit -- short rates keep the punchy big-number look, long
+    ones stay fully readable. Returns (lines, font, line_height).
+    """
+    hero_font = _font("DejaVuSans-Bold.ttf", 56)
+    if draw.textlength(rate_text, font=hero_font) <= max_width:
+        return [rate_text], hero_font, 62
+
+    wrap_font = _font("DejaVuSans-Bold.ttf", 30)
+    lines = _wrap_to_width(draw, rate_text, wrap_font, max_width, max_lines=3)
+    return lines, wrap_font, 36
+
+
 def render_declaration_card(
     symbol, dividend_type, rate_text, ex_date_text, payment_date_text, growth_pct, footer_lines, output_path
 ):
@@ -61,7 +79,6 @@ def render_declaration_card(
     type_font = _font("DejaVuSans-Bold.ttf", 40)
     growth_font = _font("DejaVuSans-Bold.ttf", 34)
     rate_label_font = _font("DejaVuSans.ttf", 22)
-    rate_font = _font("DejaVuSans-Bold.ttf", 56)
     pill_date_font = _font("DejaVuSans-Bold.ttf", 22)
     pill_label_font = _font("DejaVuSans-Bold.ttf", 22)
     footer_font = _font("DejaVuSans.ttf", 15)
@@ -69,20 +86,24 @@ def render_declaration_card(
     image = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
     draw = ImageDraw.Draw(image)
 
-    # Content height varies (the growth line is optional), so the block is
-    # vertically centered in the space above the footer rather than
-    # anchored to the top -- otherwise a card with no growth match leaves
-    # a large awkward gap before the footer instead of a balanced layout.
-    content_height = 100 + 56 + 40 + (56 if growth_pct is not None else 0) + 20 + 160 + 40 + 2 * PILL_HEIGHT + PILL_GAP + PILL_GROUP_GAP
+    rate_lines, rate_font, rate_line_height = _fit_rate_lines(draw, rate_text, WIDTH - 2 * PADDING - 48)
+    rate_box_height = 24 + 24 + 8 + len(rate_lines) * rate_line_height + 20
+
+    # Content height varies (the growth line is optional, the rate box
+    # grows for long/wrapped rate text), so the block is vertically
+    # centered in the space above the footer rather than anchored to the
+    # top -- otherwise a short card leaves a large awkward gap before the
+    # footer instead of a balanced layout.
+    content_height = 100 + 56 + 40 + (56 if growth_pct is not None else 0) + 20 + rate_box_height + 40 + 2 * PILL_HEIGHT + PILL_GAP + PILL_GROUP_GAP
     footer_height = len(footer_lines) * FOOTER_LINE_HEIGHT + 32
     available_height = HEIGHT - PADDING - footer_height - FOOTER_BOTTOM_MARGIN
     y = PADDING + max(0, (available_height - content_height) // 2)
 
     draw.text((PADDING, y), symbol, font=ticker_font, fill=INK)
     y += 100
-    draw.text((PADDING, y), f"{dividend_type.upper()} DIVIDEND DECLARATION", font=type_font, fill=PRIMARY_ORANGE)
+    draw.text((PADDING, y), f"{dividend_type.upper()} DIVIDEND DECLARATION", font=type_font, fill=ACCENT)
     y += 56
-    draw.line([(PADDING, y), (WIDTH - PADDING, y)], fill=PRIMARY_ORANGE, width=4)
+    draw.line([(PADDING, y), (WIDTH - PADDING, y)], fill=ACCENT, width=4)
     y += 40
 
     if growth_pct is not None:
@@ -97,11 +118,13 @@ def render_declaration_card(
         y += 56
 
     y += 20
-    draw.rounded_rectangle([PADDING, y, WIDTH - PADDING, y + 160], radius=RADIUS_CARD, fill=CANVAS_SOFT)
+    draw.rounded_rectangle([PADDING, y, WIDTH - PADDING, y + rate_box_height], radius=RADIUS_CARD, fill=CANVAS_SOFT)
     draw.text((PADDING + 24, y + 24), "DIVIDEND RATE", font=rate_label_font, fill=SUBTITLE_COLOR)
-    rate_text_fit = _truncate_to_width(draw, rate_text, rate_font, WIDTH - 2 * PADDING - 48)
-    draw.text((PADDING + 24, y + 56), rate_text_fit, font=rate_font, fill=INK)
-    y += 160 + 40
+    line_y = y + 24 + 24 + 8
+    for line in rate_lines:
+        draw.text((PADDING + 24, line_y), line, font=rate_font, fill=INK)
+        line_y += rate_line_height
+    y += rate_box_height + 40
 
     pill_width = WIDTH - 2 * PADDING
     _draw_date_pill(draw, PADDING, y, pill_width, ex_date_text, "Ex-Dividend Date", pill_date_font, pill_label_font)
