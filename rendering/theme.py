@@ -68,7 +68,10 @@ RULE_COLOR = HAIRLINE
 SECTION_RULE_COLOR = HAIRLINE
 FOOTER_COLOR = BODY
 CHIP_TINT_BASE = CANVAS_SOFT
-WATERMARK_TEXT_COLOR = ACCENT
+# DESIGN.md: "the one place color is allowed to exist is the hero...
+# everywhere else, restraint" -- a corner signature isn't a link, pricing
+# highlight, or focus signal, so it stays muted ink rather than accent.
+WATERMARK_TEXT_COLOR = MUTE
 
 # DESIGN.md: "{rounded.md} 12px -- feature cards, code blocks" -- same
 # 12px value the old Zapier system also used, so this didn't need to
