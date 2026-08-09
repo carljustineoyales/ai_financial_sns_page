@@ -6,47 +6,15 @@ handles data-fetch orchestration, preview/confirm, and posting.
 """
 
 import argparse
-import json
 import os
-from datetime import date, datetime, timezone
+from datetime import date
 
 from dotenv import load_dotenv
 
 import dividend_graphics as graphics
 from dividend_tracker import _symbol_lookup, get_watchlist_symbols
-from posters.facebook import post_photo
+from posters.preview_and_post import preview_and_post
 from scraper.pse_edge import get_dividends_and_rights
-
-
-def _preview_and_post(image_path, caption, record_path):
-    print("\n" + "-" * 60)
-    print("POST PREVIEW")
-    print("-" * 60)
-    print(f"[image: {image_path}]")
-    print(caption)
-    print("-" * 60)
-
-    post_mode = os.environ.get("POST_MODE", "confirm")
-    if post_mode == "confirm":
-        answer = input("\nPost this to Facebook? [y/N]: ").strip().lower()
-        if answer != "y":
-            print("Not posted.")
-            return
-
-    print("Posting to Facebook...")
-    post_id = post_photo(image_path, caption)
-    print(f"Posted. Post id: {post_id}")
-
-    with open(record_path, "w") as f:
-        json.dump(
-            {
-                "post_id": post_id,
-                "caption": caption,
-                "posted_at": datetime.now(timezone.utc).isoformat(),
-            },
-            f,
-            indent=2,
-        )
 
 
 def main_month():
@@ -72,7 +40,7 @@ def main_month():
 
     caption = graphics.build_month_caption()
     record_path = os.path.join(graphics.MONTH_OUTPUT_DIR, f"{image_name}.json")
-    _preview_and_post(image_path, caption, record_path)
+    preview_and_post(image_path, caption, record_path)
 
 
 def main_year():
@@ -99,7 +67,7 @@ def main_year():
 
     caption = graphics.build_year_caption(year)
     record_path = os.path.join(output_dir, "overview.json")
-    _preview_and_post(image_path, caption, record_path)
+    preview_and_post(image_path, caption, record_path)
 
 
 def main():

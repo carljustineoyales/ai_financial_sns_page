@@ -1,0 +1,23 @@
+You are extracting financial figures from a Philippine Stock Exchange (PSE) REIT financial report disclosure, for "Personal Finance Tracker", a page that educates beginner Filipino investors.
+
+Company: {company}
+Document: {template_name}
+
+Read the disclosure text below and extract ONLY figures that are explicitly stated in it. Do not calculate, estimate, or infer any number that is not directly present in the text. If a figure is not disclosed in this specific filing, use null for it -- do not guess or carry over a figure from a different period.
+
+Output strict JSON only, no markdown code fences, no prose before or after, matching exactly this shape:
+{{
+  "period": "<the reporting period this filing covers, e.g. \"Q2 2026\" or \"FY 2025\", or null if unclear>",
+  "revenue": "<total revenue/rental income figure as stated, with unit, or null>",
+  "net_income": "<net income figure as stated, with unit, or null>",
+  "distributable_income": "<distributable income figure as stated, with unit, or null>",
+  "distribution_per_share": "<dividend/distribution per share as stated, or null>",
+  "leverage_ratio": "<gearing/leverage ratio (e.g. debt to total assets or Deposited Property) as stated, or null>",
+  "nav_per_share": "<Net Asset Value per share as stated, or null>",
+  "occupancy_rate": "<portfolio occupancy rate as stated, or null>"
+}}
+
+Disclosure text:
+---
+{text}
+---

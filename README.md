@@ -13,17 +13,32 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   computes end-of-day gainers/losers/most active and caches them to `output/`.
 - **Market calendar** ([scraper/market_calendar.py](scraper/market_calendar.py)) —
   refreshes dividends/SROs/meetings/listings for the current month.
-- **Dividend graphics** ([dividend_graphics.py](dividend_graphics.py) +
-  [dividend_posters.py](dividend_posters.py)) — builds and posts dividend
-  graphics scoped to the PSEi + REIT watchlist: `month` posts next month's
-  dividend ex-date calendar, `year` posts a full Jan-Dec dividend payout
-  overview plus per-month detail cards. Graphic generation
-  (`dividend_graphics.py`) is separate from posting
-  (`dividend_posters.py`, which has the only `posters.facebook` dependency)
-  so the cards can be rendered and previewed without a Facebook post ever
-  being possible.
+- **Dividend graphics** ([dividend_graphics.py](dividend_graphics.py)) —
+  builds dividend graphics scoped to the PSEi + REIT watchlist: `month`
+  builds next month's dividend ex-date calendar card, `year` builds a full
+  Jan-Dec dividend payout overview plus per-month detail cards. No
+  dependency on `posters.facebook` — cards can be rendered and previewed
+  without a Facebook post ever being possible.
+- **Dividend posters** ([dividend_posters.py](dividend_posters.py)) — CLI
+  (`month`/`year`) that calls into `dividend_graphics.py` to build the card,
+  then previews/confirms and posts it to Facebook. The only module with a
+  `posters.facebook` dependency for this pipeline.
+- **REIT report cards** ([reit_report_cards.py](reit_report_cards.py)) —
+  whenever any of the 8 PSE REITs files a financial report disclosure,
+  extracts whatever figures that filing actually states (revenue, net
+  income, distributable income, distribution per share, leverage ratio,
+  NAV per share, occupancy rate — see the "REIT Selection Framework" in
+  the Obsidian vault's Dividend Stock Selection Criteria for why these,
+  not standard EBITDA/P&L metrics), renders a report-card graphic, and
+  posts it. Triggered mechanically by "a REIT filed" — every REIT gets a
+  report card every time, regardless of whether the figures look strong
+  or weak, so this never functions as a curated "top pick."
 
 Shared watchlist/date-range helpers live in [dividend_tracker.py](dividend_tracker.py).
+The `preview_and_post` confirm/post/record flow shared by
+[dividend_posters.py](dividend_posters.py) and
+[reit_report_cards.py](reit_report_cards.py) lives in
+[posters/preview_and_post.py](posters/preview_and_post.py).
 Graphic cards (dividend calendars, year overview) are rendered to PNG via the
 [rendering/](rendering/) package (Pillow, DejaVu Sans, deliberately simple
 utility graphics rather than polished design) — `theme.py` holds the palette
@@ -46,6 +61,19 @@ flowchart TD
         D1 --> D2 --> D3 --> D4
     end
     PSE --> D1
+
+    subgraph ReitCards["REIT report cards — reit_report_cards.py"]
+        RC1["Fetch recent financial report\ndisclosures + filter to the 8 REITs"]
+        RC2[Extract text]
+        RC3["Extract report-card figures with LLM\n(revenue, net income, distributable\nincome, leverage, NAV/share, occupancy)"]
+        RC4[Render report-card table image]
+        RC5[Generate factual caption\nno buy/sell/consider language]
+        RC1 --> RC2 --> RC3 --> RC4
+        RC3 --> RC5
+    end
+    PSE --> RC1
+    RC4 --> RCPNG[(Rendered PNG card)]
+    RC5 --> RCCAP[Caption]
 
     subgraph MarketData["Market data refresh"]
         M1["scraper/market_movers.py\ngainers / losers / most active"]
@@ -72,12 +100,14 @@ flowchart TD
     end
     OUT2 --> WL
 
-    subgraph Posting["Posting — dividend_posters.py"]
-        P1[main_month / main_year]
-        P2[preview + confirm prompt]
+    subgraph Posting["Posting — dividend_posters.py / reit_report_cards.py"]
+        P1[main_month / main_year /\n_process_disclosure]
+        P2["preview_and_post()\n(posters/preview_and_post.py)"]
         P1 --> P2
     end
     PNG --> P1
+    RCPNG --> P1
+    RCCAP --> P1
 
     FB[(Facebook Page)]
     D4 -- post_to_page --> FB
@@ -116,6 +146,7 @@ python -m scraper.market_movers          # market movers
 python -m scraper.market_calendar        # market calendar data refresh
 python dividend_posters.py month         # market calendar graphic
 python dividend_posters.py year          # year overview graphic
+python reit_report_cards.py              # REIT report cards (mechanical, per filing)
 ```
 
 With `POST_MODE=confirm` (default), each script prints a preview and asks
