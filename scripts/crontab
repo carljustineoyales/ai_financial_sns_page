@@ -27,9 +27,9 @@ PYTHON=/home/cjoyales/personal/ai_financial_sns_page/.venv/bin/python
 
 # Market calendar graphic (PSEi + REIT watchlist, all event types): monthly
 # preview of next month, same day as the dividend monthly cards.
-10 8 25 * * cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_market_calendar_poster.lock $PYTHON market_calendar_poster.py >> logs/market_calendar_poster.log 2>&1
+10 8 25 * * cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_market_calendar_poster.lock $PYTHON dividend_posters.py month >> logs/market_calendar_poster.log 2>&1
 
 # Year overview graphic (PSEi + REIT watchlist): full Jan-Dec dividend
 # payout calendar for the current year. Refreshed monthly since more
 # months get declared as the year progresses.
-20 8 25 * * cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_year_overview_poster.lock $PYTHON year_overview_poster.py >> logs/year_overview_poster.log 2>&1
+20 8 25 * * cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_year_overview_poster.lock $PYTHON dividend_posters.py year >> logs/year_overview_poster.log 2>&1

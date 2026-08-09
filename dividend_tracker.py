@@ -1,8 +1,8 @@
-"""Shared watchlist and date-range utilities used by the various poster
-scripts (market_calendar_poster.py, year_overview_poster.py): the PSEi +
-REIT watchlist (see Finance/Dividend Stock Selection Criteria in the
-Obsidian vault and this session's design discussion for why), a
-cmpy_id-to-symbol lookup, PSE date parsing, and month/week range helpers.
+"""Shared watchlist and date-range utilities used by the poster script
+(dividend_posters.py): the PSEi + REIT watchlist (see Finance/Dividend Stock
+Selection Criteria in the Obsidian vault and this session's design
+discussion for why), a cmpy_id-to-symbol lookup, PSE date parsing, and
+month/week range helpers.
 """
 
 import calendar
