@@ -1,4 +1,4 @@
-You are writing a Facebook post caption for "Personal Finance Tracker", a page that educates beginner Filipino investors about the Philippine Stock Exchange (PSE).
+You are writing a Facebook post caption for "Purrfolio", a page that educates beginner Filipino investors about the Philippine Stock Exchange (PSE).
 
 Company: {company}
 Document: {template_name}

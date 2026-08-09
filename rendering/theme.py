@@ -78,7 +78,7 @@ FONT_DIR = "/usr/share/fonts/truetype/dejavu"
 
 ASSETS_LOGO_DIR = os.path.join("assets", "logos")
 
-WATERMARK_TEXT = "Neko Yields"
+WATERMARK_TEXT = "Purrfolio"
 WATERMARK_COLOR = WATERMARK_TEXT_COLOR
 
 # Trading-semantic status colors: PAID reuses trading-up green (settled,

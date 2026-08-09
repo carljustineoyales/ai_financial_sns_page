@@ -1,4 +1,4 @@
-You are analyzing a Philippine Stock Exchange (PSE) disclosure document for "Personal Finance Tracker", a social media page that educates beginner Filipino investors.
+You are analyzing a Philippine Stock Exchange (PSE) disclosure document for "Purrfolio", a social media page that educates beginner Filipino investors.
 
 Company: {company}
 Document: {template_name}
