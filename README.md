@@ -23,21 +23,26 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   (`month`/`year`) that calls into `dividend_graphics.py` to build the card,
   then previews/confirms and posts it to Facebook. The only module with a
   `posters.facebook` dependency for this pipeline.
-- **REIT report cards** ([reit_report_cards.py](reit_report_cards.py)) —
-  whenever any of the 8 PSE REITs files a financial report disclosure,
+- **Financial report cards** ([financial_report_cards.py](financial_report_cards.py)) —
+  whenever any PSE-listed company files a financial report disclosure,
   extracts whatever figures that filing actually states (revenue, net
-  income, distributable income, distribution per share, leverage ratio,
-  NAV per share, occupancy rate — see the "REIT Selection Framework" in
-  the Obsidian vault's Dividend Stock Selection Criteria for why these,
-  not standard EBITDA/P&L metrics), renders a report-card graphic, and
-  posts it. Triggered mechanically by "a REIT filed" — every REIT gets a
-  report card every time, regardless of whether the figures look strong
-  or weak, so this never functions as a curated "top pick."
+  income, balance sheet, cash flow, and — for the 8 PSE REITs only —
+  distributable income, leverage ratio, NAV per share, occupancy rate;
+  see the Obsidian vault's Dividend Stock Selection Criteria for why
+  REITs get different fields), computes a few simple ratios from those
+  stated figures in Python (never via the LLM — margins, current ratio,
+  D/E, ROE/ROA, asset turnover, and P/E/P/B using a live price fetch),
+  renders a report-card graphic, and posts it. Triggered mechanically by
+  "they filed" — every company gets a report card every time, regardless
+  of whether the figures look strong or weak, so this never functions as
+  a curated "top pick." Deliberately overlaps with `main.py`'s coverage
+  (narrative vs. structured figures for the same filing) rather than
+  replacing it.
 
 Shared watchlist/date-range helpers live in [dividend_tracker.py](dividend_tracker.py).
 The `preview_and_post` confirm/post/record flow shared by
 [dividend_posters.py](dividend_posters.py) and
-[reit_report_cards.py](reit_report_cards.py) lives in
+[financial_report_cards.py](financial_report_cards.py) lives in
 [posters/preview_and_post.py](posters/preview_and_post.py).
 Graphic cards (dividend calendars, year overview) are rendered to PNG via the
 [rendering/](rendering/) package (Pillow, DejaVu Sans, deliberately simple
@@ -62,14 +67,15 @@ flowchart TD
     end
     PSE --> D1
 
-    subgraph ReitCards["REIT report cards — reit_report_cards.py"]
-        RC1["Fetch recent financial report\ndisclosures + filter to the 8 REITs"]
+    subgraph ReitCards["Financial report cards — financial_report_cards.py"]
+        RC1["Fetch recent financial report\ndisclosures, match every filer\nagainst the PSE company directory"]
         RC2[Extract text]
-        RC3["Extract report-card figures with LLM\n(revenue, net income, distributable\nincome, leverage, NAV/share, occupancy)"]
+        RC3["Extract stated figures with LLM\n(each as {stated, value};\nREIT-only fields when filer is a REIT)"]
+        RC6["Compute ratios in Python, not LLM\n(margins, current ratio, D/E, ROE/ROA;\nP/E, P/B via live price fetch)"]
         RC4[Render report-card table image]
         RC5[Generate factual caption\nno buy/sell/consider language]
-        RC1 --> RC2 --> RC3 --> RC4
-        RC3 --> RC5
+        RC1 --> RC2 --> RC3 --> RC6 --> RC4
+        RC6 --> RC5
     end
     PSE --> RC1
     RC4 --> RCPNG[(Rendered PNG card)]
@@ -100,7 +106,7 @@ flowchart TD
     end
     OUT2 --> WL
 
-    subgraph Posting["Posting — dividend_posters.py / reit_report_cards.py"]
+    subgraph Posting["Posting — dividend_posters.py / financial_report_cards.py"]
         P1[main_month / main_year /\n_process_disclosure]
         P2["preview_and_post()\n(posters/preview_and_post.py)"]
         P1 --> P2
@@ -146,7 +152,7 @@ python -m scraper.market_movers          # market movers
 python -m scraper.market_calendar        # market calendar data refresh
 python dividend_posters.py month         # market calendar graphic
 python dividend_posters.py year          # year overview graphic
-python reit_report_cards.py              # REIT report cards (mechanical, per filing)
+python financial_report_cards.py         # financial report cards, all filers (mechanical, per filing)
 ```
 
 With `POST_MODE=confirm` (default), each script prints a preview and asks

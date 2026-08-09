@@ -1,5 +1,5 @@
 """Shared preview/confirm/post flow for scripts that post an image+caption
-card to Facebook (dividend_posters.py, reit_report_cards.py).
+card to Facebook (dividend_posters.py, financial_report_cards.py).
 """
 
 import json

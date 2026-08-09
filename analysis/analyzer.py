@@ -39,12 +39,15 @@ def generate_caption(analysis_text, company, template_name):
 
 
 def extract_report_card(text, company, template_name):
-    """Asks the LLM to extract only the REIT report-card figures explicitly
-    stated in the disclosure text (see prompts/reit_report_card_extraction.txt
-    for the exact field list). Returns a dict with those fields, using None
-    for anything the filing didn't disclose.
+    """Asks the LLM to extract only the report-card figures explicitly
+    stated in the disclosure text -- each numeric field as a {"stated":,
+    "value":} pair, plus REIT-only fields for the 8 PSE REITs (see
+    prompts/financial_report_card_extraction.txt for the exact field
+    list). Returns a dict with those fields, using None for anything the
+    filing didn't disclose. Never computes ratios -- that's
+    analysis.ratios's job, done in Python from the "value"s here.
     """
-    prompt = _load_prompt("reit_report_card_extraction.txt").format(
+    prompt = _load_prompt("financial_report_card_extraction.txt").format(
         company=company, template_name=template_name, text=text
     )
 
@@ -59,7 +62,7 @@ def extract_report_card(text, company, template_name):
 
 
 def generate_report_card_caption(symbol, period, figures_text):
-    prompt = _load_prompt("reit_report_card_caption.txt").format(
+    prompt = _load_prompt("financial_report_card_caption.txt").format(
         symbol=symbol, period=period or "unspecified period", figures=figures_text
     )
 

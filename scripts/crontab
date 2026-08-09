@@ -34,8 +34,10 @@ PYTHON=/home/cjoyales/personal/ai_financial_sns_page/.venv/bin/python
 # months get declared as the year progresses.
 20 8 25 * * cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_year_overview_poster.lock $PYTHON dividend_posters.py year >> logs/year_overview_poster.log 2>&1
 
-# REIT report cards: mechanical trigger, posts whenever any of the 8 PSE
-# REITs files a financial report -- every REIT gets one every time they
-# file, never selected by whether the figures look good. Same cadence as
-# main.py since it shares the same disclosure feed.
-*/30 9-15 * * 1-5 cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_reit_report_cards.lock $PYTHON reit_report_cards.py >> logs/reit_report_cards.log 2>&1
+# Financial report cards: mechanical trigger, posts a figures table
+# whenever any PSE-listed company files a financial report -- every filer
+# gets one every time they file, never selected by whether the figures
+# look good. Same cadence as main.py since it shares the same disclosure
+# feed; the two posts intentionally overlap (main.py = narrative, this =
+# structured figures) rather than duplicate each other.
+*/30 9-15 * * 1-5 cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_financial_report_cards.lock $PYTHON financial_report_cards.py >> logs/financial_report_cards.log 2>&1
