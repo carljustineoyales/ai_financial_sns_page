@@ -13,10 +13,15 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   computes end-of-day gainers/losers/most active and caches them to `output/`.
 - **Market calendar** ([scraper/market_calendar.py](scraper/market_calendar.py)) —
   refreshes dividends/SROs/meetings/listings for the current month.
-- **Dividend graphics** ([dividend_posters.py](dividend_posters.py)) — posts
-  dividend graphics scoped to the PSEi + REIT watchlist: `month` posts next
-  month's dividend ex-date calendar, `year` posts a full Jan-Dec dividend
-  payout overview plus per-month detail cards.
+- **Dividend graphics** ([dividend_graphics.py](dividend_graphics.py) +
+  [dividend_posters.py](dividend_posters.py)) — builds and posts dividend
+  graphics scoped to the PSEi + REIT watchlist: `month` posts next month's
+  dividend ex-date calendar, `year` posts a full Jan-Dec dividend payout
+  overview plus per-month detail cards. Graphic generation
+  (`dividend_graphics.py`) is separate from posting
+  (`dividend_posters.py`, which has the only `posters.facebook` dependency)
+  so the cards can be rendered and previewed without a Facebook post ever
+  being possible.
 
 Shared watchlist/date-range helpers live in [dividend_tracker.py](dividend_tracker.py).
 Graphic cards (dividend calendars, year overview) are rendered to PNG via the
@@ -53,10 +58,10 @@ flowchart TD
     PSE --> M1
     PSE --> M2
 
-    subgraph Graphics["Graphic posters"]
+    subgraph Graphics["Graphic generation — dividend_graphics.py"]
         WL["dividend_tracker.py\nwatchlist + date-range helpers"]
-        G1[dividend_posters.py month]
-        G2[dividend_posters.py year]
+        G1[build_month_card]
+        G2[build_year_card /\nbuild_month_detail_cards]
         R["rendering/ package\ntheme + primitives + card renderers"]
         LOGOS[(assets/logos/*.png\nvia assets_logos.py)]
         PNG[(Rendered PNG card)]
@@ -67,9 +72,16 @@ flowchart TD
     end
     OUT2 --> WL
 
+    subgraph Posting["Posting — dividend_posters.py"]
+        P1[main_month / main_year]
+        P2[preview + confirm prompt]
+        P1 --> P2
+    end
+    PNG --> P1
+
     FB[(Facebook Page)]
     D4 -- post_to_page --> FB
-    PNG -- post_photo --> FB
+    P2 -- post_photo --> FB
 ```
 
 ## Setup
