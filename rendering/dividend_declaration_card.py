@@ -8,7 +8,7 @@ background or branding.
 
 from PIL import Image, ImageDraw
 
-from .primitives import _draw_watermark_inline, _font, _truncate_to_width, _watermark_reserve_width, _wrap_footer_lines, _wrap_to_width
+from .primitives import _draw_watermark_inline, _font, _load_logo, _truncate_to_width, _watermark_reserve_width, _wrap_footer_lines, _wrap_to_width
 from .theme import (
     BACKGROUND,
     CANVAS_SOFT,
@@ -111,7 +111,20 @@ def render_declaration_card(
 
     draw.text((PADDING, y), f"{dividend_type.upper()} DIVIDEND DECLARATION", font=eyebrow_font, fill=MUTE)
     y += 36
-    draw.text((PADDING, y), symbol, font=ticker_font, fill=INK)
+
+    # Logo sits to the left of the ticker, at roughly the font's cap
+    # height so it reads as sitting on the same baseline rather than
+    # floating -- falls back to just the ticker text (unchanged layout)
+    # when no logo is cached for this symbol, same graceful-absence
+    # behavior every other card's logo usage already has.
+    logo_size = 80
+    logo = _load_logo(symbol, logo_size)
+    ticker_x = PADDING
+    if logo:
+        logo_y = y + (100 - logo_size) // 2
+        image.paste(logo, (PADDING, int(logo_y)), logo)
+        ticker_x = PADDING + logo_size + 20
+    draw.text((ticker_x, y), symbol, font=ticker_font, fill=INK)
     y += 100
     draw.line([(PADDING, y), (WIDTH - PADDING, y)], fill=HAIRLINE, width=1)
     y += 24

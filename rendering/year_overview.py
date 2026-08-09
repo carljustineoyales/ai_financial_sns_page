@@ -10,10 +10,10 @@ from .theme import (
     FOOTER_COLOR,
     FOOTER_LINE_HEIGHT,
     HEIGHT,
+    MUTE,
     PADDING,
     ROW_ALT_BG,
     ROW_TEXT,
-    RULE_COLOR,
     SECTION_RULE_COLOR,
     SUBTITLE_COLOR,
     TITLE_BLOCK_HEIGHT,
@@ -69,7 +69,17 @@ def render_year_overview(year, months_data, title, subtitle, footer_lines, outpu
 
         symbols = months_data.get(month, [])
 
-        draw.rectangle([bx, by, bx + col_width, by + row_height], outline=RULE_COLOR, width=1, fill=ROW_ALT_BG)
+        # Alternating checkerboard fill (not just a shared background for
+        # every cell) plus a visibly-toned MUTE border, not the generic
+        # hairline -- with all 12 cells otherwise identical, the grid
+        # lines were the only thing separating one month's tickers from
+        # the next, and DESIGN.md's hairline (#ebebeb) is too faint against
+        # this fill to read as a real boundary. This is a genuinely
+        # functional data grid, not a decorative divider, so it needs
+        # real contrast the same way TRADING_UP/DOWN needed a real
+        # green/red exception.
+        cell_fill = ROW_ALT_BG if (row + col) % 2 == 0 else BACKGROUND
+        draw.rectangle([bx, by, bx + col_width, by + row_height], outline=MUTE, width=1, fill=cell_fill)
         month_label = MONTH_LABELS[month - 1]
         month_label_w = draw.textlength(month_label, font=month_font)
         draw.text((bx + (col_width - month_label_w) / 2, by + 7), month_label, font=month_font, fill=TITLE_COLOR)
@@ -145,7 +155,7 @@ def render_year_overview(year, months_data, title, subtitle, footer_lines, outpu
             else:
                 draw.rounded_rectangle(
                     [lx, ly, lx + logo_cell, ly + logo_cell],
-                    radius=6, fill=ROW_ALT_BG, outline=RULE_COLOR, width=1,
+                    radius=6, fill=BACKGROUND, outline=MUTE, width=1,
                 )
                 text = _truncate_to_width(draw, symbol, fallback_font, logo_cell)
                 text_w = draw.textlength(text, font=fallback_font)
