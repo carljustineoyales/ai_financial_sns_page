@@ -39,13 +39,16 @@ def build_declaration_card(symbol, entry, prior_entry, output_path):
 
 def _format_rate(rate_text):
     """PSE's own dividend_rate text is wildly inconsistent -- sometimes a
-    bare number ("Php25"), sometimes already includes a unit ("Php25 per
-    common share"), sometimes a full verbose description for preferred
-    shares ("Fixed annual rate of 6.1179%... using a 30/360 day
-    convention."). Only append "per share" when the text doesn't already
-    say "per" somewhere, to avoid "...per common share per share."
+    bare number ("Php25"), sometimes already includes a unit in one of
+    several phrasings ("Php25 per common share", "P0.79/Share"), sometimes
+    a full verbose description for preferred shares ("Fixed annual rate
+    of 6.1179%... using a 30/360 day convention."). Only append "per
+    share" when the text doesn't already convey a per-share unit in any
+    of its phrasings, to avoid "...per common share per share" or
+    "P0.79/Share per share".
     """
-    if "per" in rate_text.lower():
+    lowered = rate_text.lower()
+    if "per" in lowered or "/share" in lowered.replace(" ", ""):
         return rate_text
     return f"{rate_text} per share"
 

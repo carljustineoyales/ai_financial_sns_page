@@ -12,12 +12,9 @@ import rendering as renderer
 from dividend_tracker import _parse_pse_date, get_period_range
 
 DISCLAIMER = (
-    "Disclaimer: This post is for educational and informational purposes only. "
-    "The companies mentioned are examples of businesses that have historically "
-    "paid dividends and should not be considered investment recommendations. "
-    "Dividend payments are not guaranteed and may change based on company "
-    "performance and board decisions. Investments in securities are subject to "
-    "market risks. Please conduct your own research and consult a qualified "
+    "Disclaimer: For educational and informational purposes only, not "
+    "investment advice. Dividend payments are not guaranteed and may change "
+    "at any time. Investing involves market risk -- consult a qualified "
     "financial advisor before making investment decisions."
 )
 
