@@ -14,6 +14,6 @@ Figures from this filing (marked "derived" are computed from the stated figures,
 Write a short, professional 2-3 sentence caption stating what was disclosed and when it was filed. Plain text only, no markdown formatting. Do not use rhetorical questions ("Thinking about...?", "Looking for...?"), hype words ("massive", "huge", "off the table"), or exclamation points. Do not use any language that suggests the reader should buy, sell, or consider the stock -- no "should you consider", "worth a look", "worth considering", "a good pick", or similar phrasing. Do not imply the filing happened today or that it caused today's price move. State the figures plainly and let the reader judge their own significance. If mentioning a derived ratio, keep the "derived" framing rather than presenting it as something the company itself reported.
 
 End with this exact disclaimer line:
-"We are not financial advisors. This is for educational purposes only. Do your own research before investing."
+"Disclaimer: For educational and informational purposes only, not investment advice. Dividend payments are not guaranteed and may change at any time. Investing involves market risk -- consult a qualified financial advisor before making investment decisions."
 
 Then end with 2-4 relevant hashtags (e.g. #PSE #InvestPH).

@@ -4,7 +4,7 @@ import math
 
 from PIL import Image, ImageDraw
 
-from .primitives import _company_name, _draw_title_header, _draw_watermark_inline, _font, _load_logo, _truncate_to_width, _wrap_to_width
+from .primitives import _company_name, _draw_title_header, _draw_watermark_inline, _font, _load_logo, _truncate_to_width, _watermark_reserve_width, _wrap_footer_lines, _wrap_to_width
 from .theme import (
     BACKGROUND,
     BODY_FOOTER_GAP,
@@ -62,6 +62,10 @@ def render_ticker_logo_grid(title, subtitle, symbols, footer_lines, output_path)
     cols = max(1, cols)
     rows = max(1, math.ceil(n / cols))
 
+    image = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
+    draw = ImageDraw.Draw(image)
+
+    footer_lines = _wrap_footer_lines(draw, footer_lines, footer_font, WIDTH - 2 * PADDING - _watermark_reserve_width(draw))
     footer_height = len(footer_lines) * FOOTER_LINE_HEIGHT + 32
     available_height = HEIGHT - PADDING - TITLE_BLOCK_HEIGHT - footer_height - FOOTER_BOTTOM_MARGIN - BODY_FOOTER_GAP
     available_width = WIDTH - 2 * PADDING
@@ -89,9 +93,6 @@ def render_ticker_logo_grid(title, subtitle, symbols, footer_lines, output_path)
     # vertically centered within its track (align-items: center) so the
     # grid stretches to fill the space instead of leaving it below.
     row_track_height = (available_height - (rows - 1) * row_gap) / rows
-
-    image = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
-    draw = ImageDraw.Draw(image)
 
     y = _draw_title_header(draw, title, subtitle, title_font, subtitle_font) + top_margin
 

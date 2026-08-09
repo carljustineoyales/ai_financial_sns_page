@@ -4,7 +4,7 @@ import calendar as calendar_module
 
 from PIL import Image, ImageDraw
 
-from .primitives import _draw_chip, _draw_title_header, _draw_watermark_inline, _font, _load_logo, _truncate_to_width
+from .primitives import _draw_chip, _draw_title_header, _draw_watermark_inline, _font, _load_logo, _truncate_to_width, _watermark_reserve_width, _wrap_footer_lines
 from .theme import (
     BACKGROUND,
     BODY_FOOTER_GAP,
@@ -53,6 +53,10 @@ def render_month_calendar(year, month, events_by_day, title, subtitle, footer_li
     weekday_header_height = 36
     event_line_height = 17
 
+    image = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
+    draw = ImageDraw.Draw(image)
+
+    footer_lines = _wrap_footer_lines(draw, footer_lines, footer_font, WIDTH - 2 * PADDING - _watermark_reserve_width(draw))
     footer_height = len(footer_lines) * FOOTER_LINE_HEIGHT + 32
     grid_height = HEIGHT - PADDING - TITLE_BLOCK_HEIGHT - weekday_header_height - footer_height - FOOTER_BOTTOM_MARGIN - BODY_FOOTER_GAP
     cell_height = grid_height // len(weeks)
@@ -60,9 +64,6 @@ def render_month_calendar(year, month, events_by_day, title, subtitle, footer_li
     day_number_height = 26
     max_events_that_fit = max(0, (cell_height - day_number_height - 6) // event_line_height)
     max_events_per_day = min(max_events_per_day, max_events_that_fit)
-
-    image = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
-    draw = ImageDraw.Draw(image)
 
     y = _draw_title_header(draw, title, subtitle, title_font, subtitle_font)
 

@@ -1,11 +1,13 @@
-"""Local disk cache of company logo images, scraped from PSE Edge and keyed
-by ticker symbol. rendering/primitives.py's _load_logo() only ever reads
-from LOGO_DIR and never fetches -- it silently renders without a logo for
-any symbol not yet cached. All network fetching happens in this module,
-and only when run manually (`python assets_logos.py ...`); no poster or
-graphics module calls ensure_logos() automatically anymore, so a cron run
-never triggers an unattended download+decode of an externally-hosted
-image (see the DecompressionBombWarning this surfaced during a manual
+"""Local disk cache of company logo images, scraped from TradingView and
+keyed by ticker symbol (PSE Edge's own /clogo/ images were the original
+source; replaced with TradingView's, which cover more symbols).
+rendering/primitives.py's _load_logo() only ever reads from LOGO_DIR and
+never fetches -- it silently renders without a logo for any symbol not
+yet cached. All network fetching happens in this module, and only when
+run manually (`python assets_logos.py ...`); no poster or graphics module
+calls ensure_logos() automatically anymore, so a cron run never triggers
+an unattended download+decode of an externally-hosted image (see the
+DecompressionBombWarning this surfaced during a manual
 market_movers_poster.py test -- fetching/decoding arbitrary external
 images shouldn't happen unattended in a scheduled pipeline).
 """
@@ -16,8 +18,9 @@ import os
 import sys
 
 from rendering.primitives import MAX_LOGO_SOURCE_PIXELS, _open_image_no_bomb_warning
-from scraper import pse_edge
+from scraper import tradingview
 from scraper.market_movers import COMPANY_DIRECTORY_CACHE, refresh_company_directory
+from scraper.pse_edge import download_image
 
 LOGO_DIR = os.path.join("assets", "logos")
 
@@ -27,13 +30,6 @@ def _load_company_directory():
         with open(COMPANY_DIRECTORY_CACHE) as f:
             return json.load(f)
     return refresh_company_directory()
-
-
-def _cmpy_id_for_symbol(symbol):
-    for company in _load_company_directory():
-        if company["symbol"] == symbol and company.get("cmpy_id"):
-            return company["cmpy_id"]
-    return None
 
 
 def get_logo_path(symbol):
@@ -48,17 +44,13 @@ def get_logo_path(symbol):
     if os.path.exists(dest_path):
         return dest_path
 
-    cmpy_id = _cmpy_id_for_symbol(symbol)
-    if not cmpy_id:
-        return None
-
     try:
-        logo_url = pse_edge.get_company_logo_url(cmpy_id)
+        logo_url = tradingview.get_company_logo_url(symbol)
         if not logo_url:
             return None
 
         os.makedirs(LOGO_DIR, exist_ok=True)
-        pse_edge.download_image(logo_url, dest_path)
+        download_image(logo_url, dest_path)
 
         with _open_image_no_bomb_warning(dest_path) as im:
             if im.width * im.height > MAX_LOGO_SOURCE_PIXELS:

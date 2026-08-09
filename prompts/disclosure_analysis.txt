@@ -10,7 +10,7 @@ Below is the extracted text of the disclosure PDF. Produce a short analysis with
 4. A neutral, informational tone -- do not give buy/sell advice.
 
 End with this exact disclaimer line:
-"We are not financial advisors. This is for educational purposes only. Do your own research before investing."
+"Disclaimer: For educational and informational purposes only, not investment advice. Dividend payments are not guaranteed and may change at any time. Investing involves market risk -- consult a qualified financial advisor before making investment decisions."
 
 Output plain text only, suitable for posting directly on Facebook. Do not use any markdown syntax (no #, *, **, -, or bullet/numbered list characters). Do not include any preamble or meta-commentary like "Here is the analysis" -- start directly with the summary. Use blank lines to separate sections instead of headers.
 

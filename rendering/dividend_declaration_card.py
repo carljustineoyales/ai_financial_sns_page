@@ -8,25 +8,27 @@ background or branding.
 
 from PIL import Image, ImageDraw
 
-from .primitives import _draw_watermark_inline, _font, _truncate_to_width, _wrap_to_width
+from .primitives import _draw_watermark_inline, _font, _load_logo, _truncate_to_width, _watermark_reserve_width, _wrap_footer_lines, _wrap_to_width
 from .theme import (
-    ACCENT,
     BACKGROUND,
     CANVAS_SOFT,
     FOOTER_BOTTOM_MARGIN,
     FOOTER_COLOR,
     FOOTER_LINE_HEIGHT,
+    HAIRLINE,
     HEIGHT,
     INK,
     INK_SOFT,
+    MUTE,
     PADDING,
     RADIUS_CARD,
     SECTION_RULE_COLOR,
-    SUBTITLE_COLOR,
     TRADING_DOWN,
     TRADING_UP,
     WIDTH,
 )
+
+MONO_FONT_FILE = "DejaVuSansMono-Bold.ttf"
 
 PILL_HEIGHT = 64
 PILL_GAP = 16
@@ -75,10 +77,17 @@ def render_declaration_card(
     """growth_pct: signed float (e.g. 3.7959) or None to omit the growth
     line entirely (no comparable prior-year declaration was found).
     """
+    # DESIGN.md: "the one place color is allowed to exist is the hero...
+    # everywhere else, restraint" / "don't fill large surfaces with the
+    # accent colors" / "don't add a second decorative system." This card
+    # has no hero mesh gradient, so it stays ink-on-white throughout --
+    # ACCENT isn't used anywhere here. The "eyebrow" (small uppercase
+    # Geist Mono label, DESIGN.md's own pattern for section labels) does
+    # the emphasis work color did before.
+    eyebrow_font = _font(MONO_FONT_FILE, 22)
     ticker_font = _font("DejaVuSans-Bold.ttf", 96)
-    type_font = _font("DejaVuSans-Bold.ttf", 40)
     growth_font = _font("DejaVuSans-Bold.ttf", 34)
-    rate_label_font = _font("DejaVuSans.ttf", 22)
+    rate_label_font = _font(MONO_FONT_FILE, 18)
     pill_date_font = _font("DejaVuSans-Bold.ttf", 22)
     pill_label_font = _font("DejaVuSans-Bold.ttf", 22)
     footer_font = _font("DejaVuSans.ttf", 15)
@@ -94,17 +103,31 @@ def render_declaration_card(
     # centered in the space above the footer rather than anchored to the
     # top -- otherwise a short card leaves a large awkward gap before the
     # footer instead of a balanced layout.
-    content_height = 100 + 56 + 40 + (56 if growth_pct is not None else 0) + 20 + rate_box_height + 40 + 2 * PILL_HEIGHT + PILL_GAP + PILL_GROUP_GAP
+    content_height = 36 + 100 + 24 + (56 if growth_pct is not None else 0) + 20 + rate_box_height + 40 + 2 * PILL_HEIGHT + PILL_GAP + PILL_GROUP_GAP
+    footer_lines = _wrap_footer_lines(draw, footer_lines, footer_font, WIDTH - 2 * PADDING - _watermark_reserve_width(draw))
     footer_height = len(footer_lines) * FOOTER_LINE_HEIGHT + 32
     available_height = HEIGHT - PADDING - footer_height - FOOTER_BOTTOM_MARGIN
     y = PADDING + max(0, (available_height - content_height) // 2)
 
-    draw.text((PADDING, y), symbol, font=ticker_font, fill=INK)
+    draw.text((PADDING, y), f"{dividend_type.upper()} DIVIDEND DECLARATION", font=eyebrow_font, fill=MUTE)
+    y += 36
+
+    # Logo sits to the left of the ticker, at roughly the font's cap
+    # height so it reads as sitting on the same baseline rather than
+    # floating -- falls back to just the ticker text (unchanged layout)
+    # when no logo is cached for this symbol, same graceful-absence
+    # behavior every other card's logo usage already has.
+    logo_size = 80
+    logo = _load_logo(symbol, logo_size)
+    ticker_x = PADDING
+    if logo:
+        logo_y = y + (100 - logo_size) // 2
+        image.paste(logo, (PADDING, int(logo_y)), logo)
+        ticker_x = PADDING + logo_size + 20
+    draw.text((ticker_x, y), symbol, font=ticker_font, fill=INK)
     y += 100
-    draw.text((PADDING, y), f"{dividend_type.upper()} DIVIDEND DECLARATION", font=type_font, fill=ACCENT)
-    y += 56
-    draw.line([(PADDING, y), (WIDTH - PADDING, y)], fill=ACCENT, width=4)
-    y += 40
+    draw.line([(PADDING, y), (WIDTH - PADDING, y)], fill=HAIRLINE, width=1)
+    y += 24
 
     if growth_pct is not None:
         direction = "HIGHER" if growth_pct >= 0 else "LOWER"
@@ -119,7 +142,7 @@ def render_declaration_card(
 
     y += 20
     draw.rounded_rectangle([PADDING, y, WIDTH - PADDING, y + rate_box_height], radius=RADIUS_CARD, fill=CANVAS_SOFT)
-    draw.text((PADDING + 24, y + 24), "DIVIDEND RATE", font=rate_label_font, fill=SUBTITLE_COLOR)
+    draw.text((PADDING + 24, y + 24), "DIVIDEND RATE", font=rate_label_font, fill=MUTE)
     line_y = y + 24 + 24 + 8
     for line in rate_lines:
         draw.text((PADDING + 24, line_y), line, font=rate_font, fill=INK)

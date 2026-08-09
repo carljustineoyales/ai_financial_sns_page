@@ -2,7 +2,7 @@
 
 from PIL import Image, ImageDraw
 
-from .primitives import _draw_title_header, _draw_watermark_inline, _font, _load_logo, _truncate_to_width
+from .primitives import _draw_title_header, _draw_watermark_inline, _font, _load_logo, _truncate_to_width, _watermark_reserve_width, _wrap_footer_lines
 from .theme import (
     BACKGROUND,
     BODY_FOOTER_GAP,
@@ -45,6 +45,14 @@ def render_table_card(title, subtitle, rows, columns, footer_lines, output_path,
     footer_font = _font("DejaVuSans.ttf", 15)
     note_font = _font("DejaVuSans.ttf", 15)
 
+    # Created early (rather than where every other renderer creates it,
+    # right before drawing starts) because computing footer_height needs
+    # draw.textlength() to wrap any footer line too long to fit --
+    # otherwise a long disclaimer would overflow the fixed-canvas footer.
+    image = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
+    draw = ImageDraw.Draw(image)
+
+    footer_lines = _wrap_footer_lines(draw, footer_lines, footer_font, WIDTH - 2 * PADDING - _watermark_reserve_width(draw))
     footer_height = len(footer_lines) * FOOTER_LINE_HEIGHT + 32
     available_row_height = HEIGHT - PADDING - TITLE_BLOCK_HEIGHT - HEADER_ROW_HEIGHT - footer_height - FOOTER_BOTTOM_MARGIN - BODY_FOOTER_GAP
 
@@ -76,9 +84,6 @@ def render_table_card(title, subtitle, rows, columns, footer_lines, output_path,
     text_line_height = 22
     header_text_y_offset = (header_row_height - text_line_height) // 2
     row_text_y_offset = (row_height - text_line_height) // 2
-
-    image = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
-    draw = ImageDraw.Draw(image)
 
     y = _draw_title_header(draw, title, subtitle, title_font, subtitle_font)
 
