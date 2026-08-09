@@ -7,6 +7,9 @@ from those figures (never estimated by the LLM). Triggered mechanically by
 this never functions as a curated "top pick" -- being a top mover is a
 factual, rules-based criterion (rank by price/volume), the same category
 as the old "they filed a report" trigger, not "looks fundamentally good."
+Card/caption generation lives in financial_report_graphics.py; this module
+handles data-fetch orchestration, LLM extraction, preview/confirm, and
+posting.
 
 Runs after market close, since gainers/losers/most-active are end-of-day
 rankings -- see scripts/crontab.
@@ -25,11 +28,10 @@ from datetime import date
 
 from dotenv import load_dotenv
 
+import financial_report_graphics as graphics
 import llm
-import rendering as renderer
 from analysis.analyzer import extract_report_card, extract_text, generate_report_card_caption
 from analysis.ratios import compute_derived_metrics, compute_valuation_metrics
-from dividend_graphics import DISCLAIMER
 from dividend_tracker import PSE_REIT_SYMBOLS
 from posters.preview_and_post import preview_and_post
 from scraper.market_movers import get_or_compute_movers, refresh_company_directory
@@ -44,37 +46,6 @@ from scraper.pse_edge import (
 
 OUTPUT_DIR = os.path.join("output", "financial_report_cards")
 TOP_N = 10
-
-# Row priority: most informative fields first, so if the fixed-canvas
-# table card has to truncate, the important rows survive. Each entry is
-# (key, label, source) where source is "stated" (raw field, .stated text),
-# "stated_only" (REIT-only field, plain string), or "derived" (a computed
-# ratio, from ratios.py).
-METRIC_ORDER = [
-    ("revenue", "Revenue", "stated"),
-    ("net_income", "Net Income", "stated"),
-    ("operating_income", "Operating Income", "stated"),
-    ("net_margin", "Net Margin (derived)", "derived_pct"),
-    ("operating_margin", "Operating Margin (derived)", "derived_pct"),
-    ("ebitda_margin", "EBITDA Margin (derived)", "derived_pct"),
-    ("distributable_income", "Distributable Income", "stated_only"),
-    ("leverage_ratio", "Leverage Ratio", "stated_only"),
-    ("nav_per_share", "NAV per Share", "stated_only"),
-    ("occupancy_rate", "Occupancy Rate", "stated_only"),
-    ("current_ratio", "Current Ratio (derived)", "derived_num"),
-    ("debt_to_equity", "Debt to Equity (derived)", "derived_num"),
-    ("asset_to_equity", "Asset to Equity (derived)", "derived_num"),
-    ("interest_coverage", "Interest Coverage (derived)", "derived_num"),
-    ("roe", "ROE, period-end (derived)", "derived_pct"),
-    ("roa", "ROA, period-end (derived)", "derived_pct"),
-    ("asset_turnover", "Asset Turnover (derived)", "derived_num"),
-    ("cfo", "Cash Flow from Operations", "stated"),
-    ("cfi", "Cash Flow from Investing", "stated"),
-    ("cff", "Cash Flow from Financing", "stated"),
-    ("dividend_per_share", "Dividend per Share", "stated"),
-    ("pe_ratio", "P/E Ratio (derived)", "derived_num"),
-    ("pb_ratio", "P/B Ratio (derived)", "derived_num"),
-]
 
 
 def _fail(stage, exc):
@@ -119,52 +90,6 @@ def get_top_mover_disclosures():
         matches.append((reports[0], info))
 
     return matches, session
-
-
-def _format_pct(value):
-    return f"{value * 100:.1f}%"
-
-
-def _format_num(value):
-    return f"{value:.2f}"
-
-
-def _report_rows(data, computed, valuation):
-    rows = []
-    for key, label, source in METRIC_ORDER:
-        if source in ("stated", "stated_only"):
-            field = data.get(key)
-            value = field.get("stated") if field else None
-        elif source == "derived_pct":
-            raw = computed.get(key, valuation.get(key) if valuation else None)
-            value = _format_pct(raw) if raw is not None else None
-        elif source == "derived_num":
-            raw = computed.get(key, valuation.get(key) if valuation else None)
-            value = _format_num(raw) if raw is not None else None
-        else:
-            value = None
-
-        if value:
-            rows.append({"metric": label, "value": value})
-
-    return rows
-
-
-def build_report_card(symbol, template_name, data, computed, valuation, output_path):
-    period = data.get("period") or "unspecified period"
-    title = f"{symbol} REPORT CARD"
-    subtitle = f"{template_name} — {period}"
-
-    rows = _report_rows(data, computed, valuation)
-    columns = [("metric", "Metric", 0.55), ("value", "Value", 0.45)]
-    footer_lines = [DISCLAIMER]
-
-    return renderer.render_table_card(title, subtitle, rows, columns, footer_lines, output_path)
-
-
-def _figures_text(data, computed, valuation):
-    rows = _report_rows(data, computed, valuation)
-    return "\n".join(f"{row['metric']}: {row['value']}" for row in rows)
 
 
 def _process_disclosure(disclosure, info, session):
@@ -236,16 +161,16 @@ def _process_disclosure(disclosure, info, session):
         except Exception as e:
             _fail(f"{symbol}: fetching current price for valuation ratios", e)
 
-    rows = _report_rows(data, computed, valuation)
+    rows = graphics.report_rows(data, computed, valuation)
     if not rows:
         print(f"{symbol}: no report-card figures found in this filing, skipping post.")
         return
 
     image_path = os.path.join(item_dir, "card.png")
-    build_report_card(symbol, disclosure["template_name"], data, computed, valuation, image_path)
+    graphics.build_report_card(symbol, disclosure["template_name"], data, computed, valuation, image_path)
     print(f"{symbol}: saved card to {image_path}")
 
-    figures_text = _figures_text(data, computed, valuation)
+    figures_text = graphics.figures_text(data, computed, valuation)
     try:
         caption = generate_report_card_caption(
             symbol, data.get("period"), figures_text, disclosure["announce_datetime"]
