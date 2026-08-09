@@ -2,6 +2,7 @@
 
 import json
 import os
+import warnings
 
 from PIL import Image, ImageFont
 
@@ -101,9 +102,18 @@ def _wrap_to_width(draw, text, font, max_width, max_lines=2):
 _logo_cache = {}
 
 # Generous for an icon-sized company logo (2000x2000), well under Pillow's
-# own 89M-pixel DecompressionBombWarning threshold -- catches an
-# oversized/corrupted download before Pillow's own safety check would.
+# own 89M-pixel DecompressionBombWarning threshold. Pillow fires its own
+# warning as a side effect of Image.open() itself (as soon as it reads the
+# file's declared dimensions from the header), before any code here gets a
+# chance to compare against this cap -- so opening has to happen inside a
+# warnings suppression block, not just be followed by a size check.
 MAX_LOGO_SOURCE_PIXELS = 4_000_000
+
+
+def _open_image_no_bomb_warning(path):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", Image.DecompressionBombWarning)
+        return Image.open(path)
 
 
 def _load_logo(symbol, size):
@@ -115,7 +125,7 @@ def _load_logo(symbol, size):
     logo = None
     if os.path.exists(path):
         try:
-            source = Image.open(path)
+            source = _open_image_no_bomb_warning(path)
             if source.width * source.height <= MAX_LOGO_SOURCE_PIXELS:
                 source = source.convert("RGBA")
                 source.thumbnail((size, size), Image.LANCZOS)
