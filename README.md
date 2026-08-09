@@ -13,10 +13,15 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   computes end-of-day gainers/losers/most active and caches them to `output/`.
 - **Market movers poster** ([market_movers_poster.py](market_movers_poster.py)) —
   builds and posts a Top 10 Gainers, Top 10 Losers, and Top 10 Most Active
-  graphic (one post each), market-wide. Computes its own live snapshot
-  rather than depending on `scraper/market_movers.py`'s cache, so the two
-  scripts don't need to run in any particular order. Captions are
-  deterministic string templates, not LLM-generated — this is just
+  graphic (one post each), market-wide. Shares a same-day cached movers
+  snapshot with `financial_report_cards.py` via
+  `scraper.market_movers.get_or_compute_movers()` — whichever of the two
+  scripts (or `scraper/market_movers.py`'s own cron job) runs first for
+  the day computes it live and caches it to `output/market_movers/`; the
+  rest read that cache, so all three reference the exact same top-10
+  lists without needing a particular run order, and the live scrape only
+  happens once per day regardless of which script triggers it. Captions
+  are deterministic string templates, not LLM-generated — this is just
   formatted facts, no analysis involved.
 - **Market calendar** ([scraper/market_calendar.py](scraper/market_calendar.py)) —
   refreshes dividends/SROs/meetings/listings for the current month.
@@ -31,9 +36,9 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   then previews/confirms and posts it to Facebook. The only module with a
   `posters.facebook` dependency for this pipeline.
 - **Financial report cards** ([financial_report_cards.py](financial_report_cards.py)) —
-  for every company in today's top 10 gainers/losers/most-active
-  (`market_movers_poster.py`'s same underlying data, computed
-  independently), pulls that company's most recent financial report on
+  for every company in today's top 10 gainers/losers/most-active (same
+  cached snapshot `market_movers_poster.py` uses, via
+  `get_or_compute_movers()`), pulls that company's most recent financial report on
   file — regardless of how old it is — and extracts whatever figures the
   filing actually states (revenue, net income, balance sheet, cash flow,
   and — for the 8 PSE REITs only — distributable income, leverage ratio,
@@ -92,17 +97,20 @@ flowchart TD
     PSE --> M1
     PSE --> M2
 
+    SHARED[("get_or_compute_movers()\ncache: output/market_movers/&lt;date&gt;.json\n(computed live by whichever script runs first)")]
+    PSE --> SHARED
+
     subgraph MoversPoster["Market movers poster — market_movers_poster.py"]
-        MP1["Compute own live gainers/losers/\nmost-active snapshot (top 10 each)"]
+        MP1["Get today's top-10\ngainers/losers/most-active"]
         MP2["Render 3 table cards\n+ deterministic caption (no LLM)"]
         MP1 --> MP2
     end
-    PSE --> MP1
+    SHARED --> MP1
     MP2 --> MPPNG[(3x Rendered PNG card)]
     MP2 --> MPCAP[3x Caption]
 
     subgraph ReitCards["Financial report cards — financial_report_cards.py"]
-        RC0["Compute own live top-10\ngainers/losers/most-active,\nunion + dedup symbols"]
+        RC0["Get today's top-10\ngainers/losers/most-active,\nunion + dedup symbols"]
         RC1["Per top mover: fetch their most\nrecent financial report on file,\nany age (get_company_financial_reports)"]
         RC2[Extract text]
         RC3["Extract stated figures with LLM\n(each as {stated, value};\nREIT-only fields when filer is a REIT)"]
@@ -112,7 +120,7 @@ flowchart TD
         RC0 --> RC1 --> RC2 --> RC3 --> RC6 --> RC4
         RC6 --> RC5
     end
-    PSE --> RC0
+    SHARED --> RC0
     RC4 --> RCPNG[(Rendered PNG card)]
     RC5 --> RCCAP[Caption]
 

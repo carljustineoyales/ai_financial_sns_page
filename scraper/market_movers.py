@@ -109,15 +109,43 @@ def compute_market_movers(companies, top_n=5, delay_seconds=REQUEST_DELAY_SECOND
     }
 
 
+def _cache_path(cache_date):
+    return os.path.join(OUTPUT_DIR, f"{cache_date.isoformat()}.json")
+
+
+def get_or_compute_movers(companies, top_n=10, cache_date=None):
+    """Reads today's cached movers snapshot if one of the day's scripts
+    already computed it (market_movers_poster.py, financial_report_cards.py,
+    or this module's own main()); otherwise computes it live and writes the
+    cache, so whichever of those scripts runs first "primes" it for the
+    others. Keeps all same-day posts referencing the exact same top-10
+    lists without requiring any particular run order between them.
+    """
+    cache_date = cache_date or date.today()
+    path = _cache_path(cache_date)
+
+    if os.path.exists(path):
+        with open(path) as f:
+            return json.load(f)
+
+    movers = compute_market_movers(companies, top_n=top_n)
+
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(movers, f, indent=2)
+
+    return movers
+
+
 def main():
     print("Refreshing company directory...")
     companies = refresh_company_directory()
 
     print("Computing market movers from PSE's own top-10 snapshot...")
-    movers = compute_market_movers(companies)
+    movers = compute_market_movers(companies, top_n=10)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = os.path.join(OUTPUT_DIR, f"{date.today().isoformat()}.json")
+    output_path = _cache_path(date.today())
     with open(output_path, "w") as f:
         json.dump(movers, f, indent=2)
 

@@ -32,7 +32,7 @@ from analysis.ratios import compute_derived_metrics, compute_valuation_metrics
 from dividend_graphics import DISCLAIMER
 from dividend_tracker import PSE_REIT_SYMBOLS
 from posters.preview_and_post import preview_and_post
-from scraper.market_movers import compute_market_movers, refresh_company_directory
+from scraper.market_movers import get_or_compute_movers, refresh_company_directory
 from scraper.pse_edge import (
     download_pdf,
     get_company_financial_reports,
@@ -83,8 +83,10 @@ def _fail(stage, exc):
 
 def get_top_mover_disclosures():
     """Today's top gainers/losers/most-active (deduped, market-wide, via
-    scraper.market_movers.compute_market_movers), each paired with their
-    most recent financial report disclosure regardless of how old it is
+    scraper.market_movers.get_or_compute_movers -- shares a same-day
+    cached snapshot with market_movers_poster.py so both posts reference
+    the exact same top-10 lists), each paired with their most recent
+    financial report disclosure regardless of how old it is
     (scraper.pse_edge.get_company_financial_reports) -- as (disclosure,
     company_info) pairs. Purely mechanical filter -- every top mover
     qualifies, none excluded by how the figures look; a mover with no
@@ -93,7 +95,7 @@ def get_top_mover_disclosures():
     companies = refresh_company_directory()
     cmpy_id_by_symbol = {c["symbol"]: c.get("cmpy_id") for c in companies}
 
-    movers = compute_market_movers(companies, top_n=TOP_N)
+    movers = get_or_compute_movers(companies, top_n=TOP_N)
     symbols = sorted({entry["symbol"] for entries in movers.values() for entry in entries})
 
     session = new_session()

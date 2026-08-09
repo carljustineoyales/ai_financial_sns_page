@@ -4,6 +4,13 @@ same full-market, objective-reporting rule as market_movers.py itself and
 financial_report_cards.py). Each category is its own post. Captions are
 deterministic string templates, not LLM-generated, since this is just
 formatted facts with no analysis/judgment involved.
+
+Shares a same-day cached movers snapshot with financial_report_cards.py
+via scraper.market_movers.get_or_compute_movers -- whichever of the two
+scripts (or scraper/market_movers.py's own cron job) runs first for the
+day computes it live and caches it; the rest read that cache, so both
+posts reference the exact same top-10 lists without needing a particular
+run order.
 """
 
 import os
@@ -16,7 +23,7 @@ import rendering as renderer
 from assets_logos import ensure_logos
 from dividend_graphics import DISCLAIMER
 from posters.preview_and_post import preview_and_post
-from scraper.market_movers import compute_market_movers, refresh_company_directory
+from scraper.market_movers import get_or_compute_movers, refresh_company_directory
 
 OUTPUT_DIR = os.path.join("output", "market_movers_poster")
 TOP_N = 10
@@ -125,9 +132,9 @@ def main():
     print("Refreshing company directory...")
     companies = refresh_company_directory()
 
-    print("Computing market movers from PSE's own top-10 snapshot...")
+    print("Fetching today's market movers (cached snapshot if one already exists)...")
     try:
-        movers = compute_market_movers(companies, top_n=TOP_N)
+        movers = get_or_compute_movers(companies, top_n=TOP_N)
     except Exception as e:
         _fail("computing market movers", e)
         sys.exit(1)
