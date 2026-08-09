@@ -1,5 +1,6 @@
 """Extracts text from a downloaded disclosure PDF and asks an LLM to analyze it."""
 
+import json
 import os
 
 from pypdf import PdfReader
@@ -32,6 +33,40 @@ def analyze(text, company, template_name):
 def generate_caption(analysis_text, company, template_name):
     prompt = _load_prompt("facebook_caption.txt").format(
         company=company, template_name=template_name, analysis=analysis_text
+    )
+
+    return llm.generate(prompt)
+
+
+def extract_report_card(text, company, template_name):
+    """Asks the LLM to extract only the report-card figures explicitly
+    stated in the disclosure text -- each numeric field as a {"stated":,
+    "value":} pair, plus REIT-only fields for the 8 PSE REITs (see
+    prompts/financial_report_card_extraction.txt for the exact field
+    list). Returns a dict with those fields, using None for anything the
+    filing didn't disclose. Never computes ratios -- that's
+    analysis.ratios's job, done in Python from the "value"s here.
+    """
+    prompt = _load_prompt("financial_report_card_extraction.txt").format(
+        company=company, template_name=template_name, text=text
+    )
+
+    response = llm.generate(prompt).strip()
+    if response.startswith("```"):
+        response = response.strip("`")
+        if response.startswith("json"):
+            response = response[4:]
+        response = response.strip()
+
+    return json.loads(response)
+
+
+def generate_report_card_caption(symbol, period, figures_text, filed_on):
+    prompt = _load_prompt("financial_report_card_caption.txt").format(
+        symbol=symbol,
+        period=period or "unspecified period",
+        figures=figures_text,
+        filed_on=filed_on,
     )
 
     return llm.generate(prompt)

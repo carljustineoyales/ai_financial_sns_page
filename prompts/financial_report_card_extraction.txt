@@ -1,0 +1,41 @@
+You are extracting financial figures from a Philippine Stock Exchange (PSE) financial report disclosure, for "Personal Finance Tracker", a page that educates beginner Filipino investors.
+
+Company: {company}
+Document: {template_name}
+
+Read the disclosure text below and extract ONLY figures that are explicitly stated in it. Do not calculate, estimate, or infer any number that is not directly present in the text -- ratios and margins are computed separately by code, not by you. If a figure is not disclosed in this specific filing, use null for it -- do not guess or carry over a figure from a different period.
+
+For every numeric field below, output an object with two keys:
+- "stated": the figure exactly as written in the filing (e.g. "PHP 1.2 billion"), or null if not disclosed.
+- "value": that same figure normalized to a plain number of PHP (e.g. 1200000000 for "PHP 1.2 billion"), or null if not disclosed or you cannot normalize it confidently. Never guess a "value" you're not sure about -- leave it null even if "stated" has text, rather than risk an incorrect number.
+
+The four REIT-specific fields (distributable_income, leverage_ratio, nav_per_share, occupancy_rate) only need "stated" text (no "value" -- these are used for display only, never computed). Leave them null for non-REIT companies or if not disclosed.
+
+Output strict JSON only, no markdown code fences, no prose before or after, matching exactly this shape:
+{{
+  "period": "<the reporting period this filing covers, e.g. \"Q2 2026\" or \"FY 2025\", or null if unclear>",
+  "revenue": {{"stated": <string or null>, "value": <number or null>}},
+  "operating_income": {{"stated": <string or null>, "value": <number or null>}},
+  "net_income": {{"stated": <string or null>, "value": <number or null>}},
+  "ebitda": {{"stated": <string or null>, "value": <number or null>}},
+  "total_assets": {{"stated": <string or null>, "value": <number or null>}},
+  "total_liabilities": {{"stated": <string or null>, "value": <number or null>}},
+  "total_equity": {{"stated": <string or null>, "value": <number or null>}},
+  "current_assets": {{"stated": <string or null>, "value": <number or null>}},
+  "current_liabilities": {{"stated": <string or null>, "value": <number or null>}},
+  "cfo": {{"stated": <string or null>, "value": <number or null>}},
+  "cfi": {{"stated": <string or null>, "value": <number or null>}},
+  "cff": {{"stated": <string or null>, "value": <number or null>}},
+  "interest_expense": {{"stated": <string or null>, "value": <number or null>}},
+  "shares_outstanding": {{"stated": <string or null>, "value": <number or null>}},
+  "dividend_per_share": {{"stated": <string or null>, "value": <number or null>}},
+  "distributable_income": {{"stated": <string or null>}},
+  "leverage_ratio": {{"stated": <string or null>}},
+  "nav_per_share": {{"stated": <string or null>}},
+  "occupancy_rate": {{"stated": <string or null>}}
+}}
+
+Disclosure text:
+---
+{text}
+---

@@ -1,8 +1,7 @@
 """Renders the graphic cards to PNG without posting anywhere.
 
-Reuses the real scraping/watchlist logic from dividend_posters.py, but calls
-build_month_card()/build_year_card() directly and stops there --
-posters.facebook (post_photo/post_to_page) is never imported.
+Reuses the real scraping/watchlist logic from dividend_graphics.py, which
+has no dependency on posters.facebook (post_photo/post_to_page) at all.
 
 Usage:
     python scripts/render_preview.py calendar   # next month's dividend calendar card
@@ -24,7 +23,7 @@ PREVIEW_DIR = os.path.join("output", "_preview")
 
 
 def render_calendar():
-    from dividend_posters import build_month_card as build_card, get_month_dividend_events, get_next_month
+    from dividend_graphics import build_month_card as build_card, get_month_dividend_events, get_next_month
 
     year, month = get_next_month()
     watchlist = get_watchlist_symbols()
@@ -46,7 +45,7 @@ def render_calendar():
 
 
 def render_year():
-    from dividend_posters import build_year_card as build_card, build_month_detail_cards, get_current_year_by_month
+    from dividend_graphics import build_year_card as build_card, build_month_detail_cards, get_current_year_by_month
     from datetime import date
 
     year = date.today().year

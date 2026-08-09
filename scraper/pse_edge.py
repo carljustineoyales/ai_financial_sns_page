@@ -27,37 +27,7 @@ def new_session():
     return session
 
 
-def get_latest_financial_reports(limit=10, lookback_days=30):
-    """Returns the most recent financial report disclosures (these reliably
-    carry a PDF attachment, unlike general disclosure notices which are often
-    inline HTML only).
-    """
-    session = new_session()
-    session.get(f"{BASE_URL}/financialReports/form.do")
-
-    to_date = datetime.now()
-    from_date = to_date - timedelta(days=lookback_days)
-
-    response = session.post(
-        f"{BASE_URL}/financialReports/search.ax",
-        headers={
-            "X-Requested-With": "XMLHttpRequest",
-            "Referer": f"{BASE_URL}/financialReports/form.do",
-        },
-        data={
-            "pageNo": "1",
-            "companyId": "",
-            "keyword": "",
-            "sortType": "date",
-            "dateSortType": "DESC",
-            "cmpySortType": "",
-            "fromDate": from_date.strftime("%m-%d-%Y"),
-            "toDate": to_date.strftime("%m-%d-%Y"),
-        },
-    )
-    response.raise_for_status()
-
-    soup = BeautifulSoup(response.text, "html.parser")
+def _parse_financial_report_rows(soup, limit):
     rows = soup.select("table.list tbody tr")
 
     disclosures = []
@@ -86,7 +56,63 @@ def get_latest_financial_reports(limit=10, lookback_days=30):
             }
         )
 
+    return disclosures
+
+
+def _search_financial_reports(session, company_id, from_date, to_date, limit):
+    response = session.post(
+        f"{BASE_URL}/financialReports/search.ax",
+        headers={
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": f"{BASE_URL}/financialReports/form.do",
+        },
+        data={
+            "pageNo": "1",
+            "companyId": company_id,
+            "keyword": "",
+            "sortType": "date",
+            "dateSortType": "DESC",
+            "cmpySortType": "",
+            "fromDate": from_date.strftime("%m-%d-%Y"),
+            "toDate": to_date.strftime("%m-%d-%Y"),
+        },
+    )
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    return _parse_financial_report_rows(soup, limit)
+
+
+def get_latest_financial_reports(limit=10, lookback_days=30):
+    """Returns the most recent financial report disclosures market-wide
+    (these reliably carry a PDF attachment, unlike general disclosure
+    notices which are often inline HTML only).
+    """
+    session = new_session()
+    session.get(f"{BASE_URL}/financialReports/form.do")
+
+    to_date = datetime.now()
+    from_date = to_date - timedelta(days=lookback_days)
+
+    disclosures = _search_financial_reports(session, "", from_date, to_date, limit)
+
     return disclosures, session
+
+
+def get_company_financial_reports(cmpy_id, session=None, lookback_days=730, limit=10):
+    """Returns a specific company's most recent financial report
+    disclosures (DESC by date), regardless of how long ago they filed --
+    unlike get_latest_financial_reports, which is market-wide and
+    date-windowed to "recent." Empty list if the company has no financial
+    report disclosure within lookback_days.
+    """
+    session = session or new_session()
+    session.get(f"{BASE_URL}/financialReports/form.do")
+
+    to_date = datetime.now()
+    from_date = to_date - timedelta(days=lookback_days)
+
+    return _search_financial_reports(session, cmpy_id, from_date, to_date, limit)
 
 
 def get_pdf_attachment(edge_no, session=None):
