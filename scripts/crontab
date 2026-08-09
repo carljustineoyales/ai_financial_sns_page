@@ -54,3 +54,15 @@ PYTHON=/home/cjoyales/personal/ai_financial_sns_page/.venv/bin/python
 # market close (gainers/losers/most-active are end-of-day rankings, so
 # this can no longer run intraday like main.py does).
 20 16 * * 1-5 cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_financial_report_cards.lock $PYTHON financial_report_cards.py >> logs/financial_report_cards.log 2>&1
+
+# Dividend declarations: mechanical trigger, posts a card for any dividend
+# declaration whose ex-dividend date falls within the next 14 days --
+# rate, ex-date, payment date, and growth vs. that company's own
+# declaration from ~1 year prior when one is found (omitted otherwise).
+# The underlying feed (get_dividends_and_rights) has no "announced"
+# timestamp and returns every currently active declaration market-wide
+# (live-tested at 543 entries spanning months out), so the ex-date window
+# is what bounds this to an actionable-soon set. Not tied to market
+# close (the feed isn't end-of-day-only), so this can run during trading
+# hours like main.py.
+*/30 9-15 * * 1-5 cd $PROJECT_DIR && mkdir -p logs && POST_MODE=auto flock -n /tmp/ai_fsns_dividend_declarations.lock $PYTHON dividend_declarations.py >> logs/dividend_declarations.log 2>&1
