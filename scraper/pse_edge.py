@@ -486,6 +486,77 @@ def get_dividends_and_rights(session=None):
     return entries
 
 
+def _parse_dividend_rate(text):
+    """PSE Edge inconsistently prefixes the rate with "PhP" (e.g. "PhP11.758"
+    vs. "16.672" with no prefix, seen on the same table) -- strips that and
+    thousands separators, returns a float, or None if unparseable.
+    """
+    cleaned = re.sub(r"(?i)^php", "", text).replace(",", "").strip()
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def get_company_dividends(cmpy_id, session=None):
+    """Returns a specific company's own most recent dividend declarations
+    (COMMON/PREFERRED cash/stock/property dividends), via its Company Page
+    "Dividends and Rights" tab -- unlike get_dividends_and_rights(), which
+    is market-wide and shows only currently active declarations, this is
+    scoped to one company but shows that company's declaration history
+    (capped at roughly the last 3-4 entries / ~1 year -- PSE Edge doesn't
+    expose deeper history here). Same field shape as
+    get_dividends_and_rights() (minus "company", already known from
+    cmpy_id), plus "dividend_rate_value" (the parsed float, or None if
+    unparseable) for date/growth comparisons.
+    """
+    session = session or new_session()
+    session.get(f"{BASE_URL}/companyPage/dividends_and_rights_form.do", params={"cmpy_id": cmpy_id})
+
+    response = session.post(
+        f"{BASE_URL}/companyPage/dividends_and_rights_list.ax",
+        params={"DividendsOrRights": "Dividends"},
+        headers={
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": f"{BASE_URL}/companyPage/dividends_and_rights_form.do?cmpy_id={cmpy_id}",
+        },
+        data={"cmpy_id": cmpy_id},
+    )
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    rows = soup.select("table.list tbody tr")
+
+    entries = []
+    for row in rows:
+        cells = row.find_all("td")
+        if len(cells) < 7:
+            continue
+
+        circular_link = cells[6].find("a")
+        edge_no_match = (
+            re.search(r"openPopup\('([a-f0-9]+)'\)", circular_link.get("onclick", "")) if circular_link else None
+        )
+
+        rate_text = cells[2].get_text(strip=True)
+        entries.append(
+            {
+                "cmpy_id": cmpy_id,
+                "security_type": cells[0].get_text(strip=True),
+                "dividend_type": cells[1].get_text(strip=True),
+                "dividend_rate": rate_text,
+                "dividend_rate_value": _parse_dividend_rate(rate_text),
+                "ex_dividend_date": cells[3].get_text(strip=True),
+                "record_date": cells[4].get_text(strip=True),
+                "payment_date": cells[5].get_text(strip=True),
+                "circular_number": circular_link.get_text(strip=True) if circular_link else cells[6].get_text(strip=True),
+                "edge_no": edge_no_match.group(1) if edge_no_match else None,
+            }
+        )
+
+    return entries
+
+
 def get_index_snapshot(session=None):
     """Returns live last-trade data for every PSE security in one request:
     {symbol, company, sector_codes, last_trade_price, last_trade_date,

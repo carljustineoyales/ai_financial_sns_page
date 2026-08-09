@@ -46,6 +46,32 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   (`month`/`year`) that calls into `dividend_graphics.py` to build the card,
   then previews/confirms and posts it to Facebook. The only module with a
   `posters.facebook` dependency for this pipeline.
+- **Dividend declaration graphics** ([dividend_declaration_graphics.py](dividend_declaration_graphics.py)) —
+  builds a single-declaration card (rate, ex-dividend date, payment date,
+  and growth vs. that company's own declaration from ~1 year prior, when
+  one is found) and its deterministic caption. No dependency on
+  `posters.facebook`, no LLM call. The growth comparison is a
+  date-proximity heuristic (closest declaration to ~365 days before this
+  one) — PSE Edge has no field labeling a declaration's period
+  ("H1"/"Q2"/"Annual"), so the caption says "around this time last year,"
+  never claiming a specific period it can't confirm; omitted entirely when
+  no declaration falls within the tolerance window.
+- **Dividend declarations** ([dividend_declarations.py](dividend_declarations.py)) —
+  market-wide, for any dividend declaration whose ex-dividend date falls
+  within the next 14 days (`EX_DATE_WINDOW_DAYS`): fetches that company's
+  own recent dividend history via `scraper.pse_edge.get_company_dividends()`
+  (a different, per-company-filtered endpoint from the market-wide
+  `get_dividends_and_rights()` feed this project already used — confirmed
+  live to genuinely filter by company, capped at roughly the last 3-4
+  entries/~1 year), finds the closest-to-a-year-prior entry for the growth
+  comparison, calls into `dividend_declaration_graphics.py` to build the
+  card, then previews/confirms and posts it. Triggered mechanically by "a
+  declaration's ex-date is coming up soon," market-wide, never selected by
+  whether the rate looks good. The ex-date window exists because the
+  underlying feed has no "announced" timestamp and returns every
+  currently active declaration (live-tested at 543 entries spanning
+  months into the future) — without it, first run would post hundreds of
+  cards at once.
 - **Financial report graphics** ([financial_report_graphics.py](financial_report_graphics.py)) —
   builds a single company's report-card image from its already-extracted/
   computed figures (`METRIC_ORDER` controls row priority so the most
@@ -78,8 +104,9 @@ The preview/confirm/post/record flow shared across every poster lives in
 [posters/preview_and_post.py](posters/preview_and_post.py):
 `preview_and_post()` (image+caption, via `post_photo`) is used by
 [dividend_posters.py](dividend_posters.py),
-[market_movers_poster.py](market_movers_poster.py), and
-[financial_report_cards.py](financial_report_cards.py);
+[market_movers_poster.py](market_movers_poster.py),
+[financial_report_cards.py](financial_report_cards.py), and
+[dividend_declarations.py](dividend_declarations.py);
 `preview_and_post_text()` (text only, via `post_to_page`) is used by
 [main.py](main.py).
 Graphic cards (dividend calendars, year overview) are rendered to PNG via the
@@ -150,6 +177,17 @@ flowchart TD
     RC4 --> RCPNG[(Rendered PNG card)]
     RC5 --> RCCAP[Caption]
 
+    subgraph DivDecl["Dividend declarations — dividend_declarations.py\n+ dividend_declaration_graphics.py (no FB dependency)"]
+        DD1["Get current declarations,\nfilter to ex-date within 14 days\n(get_dividends_and_rights)"]
+        DD2["Per declaration: fetch that company's\nown dividend history\n(get_company_dividends, per-company endpoint)"]
+        DD3["Find closest-to-365-days-prior entry\n(date-proximity heuristic, or None)"]
+        DD4["dividend_declaration_graphics.py:\nbuild_declaration_card / build_declaration_caption\n(deterministic caption, no LLM)"]
+        DD1 --> DD2 --> DD3 --> DD4
+    end
+    PSE --> DD1
+    DD4 --> DDPNG[(Rendered PNG card)]
+    DD4 --> DDCAP[Caption]
+
     subgraph Graphics["Graphic generation — dividend_graphics.py"]
         WL["dividend_tracker.py\nwatchlist + date-range helpers"]
         G1[build_month_card]
@@ -165,7 +203,7 @@ flowchart TD
     OUT2 --> WL
 
     subgraph Posting["Posting — posters/preview_and_post.py"]
-        P1[main_month / main_year /\n_process_category /\n_process_disclosure]
+        P1[main_month / main_year /\n_process_category /\n_process_disclosure /\n_process_declaration]
         P2["preview_and_post()\n(image + caption, via post_photo)"]
         P3["preview_and_post_text()\n(text only, via post_to_page)"]
         P1 --> P2
@@ -175,6 +213,8 @@ flowchart TD
     MPCAP --> P1
     RCPNG --> P1
     RCCAP --> P1
+    DDPNG --> P1
+    DDCAP --> P1
     D4 --> P3
 
     FB[(Facebook Page)]
@@ -216,6 +256,7 @@ python -m scraper.market_calendar        # market calendar data refresh
 python dividend_posters.py month         # market calendar graphic
 python dividend_posters.py year          # year overview graphic
 python financial_report_cards.py         # report cards for today's top movers (run after market close)
+python dividend_declarations.py          # dividend declaration cards, ex-date within 14 days
 ```
 
 With `POST_MODE=confirm` (default), each script prints a preview and asks
