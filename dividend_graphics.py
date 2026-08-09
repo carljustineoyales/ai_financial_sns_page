@@ -20,7 +20,7 @@ DISCLAIMER = (
 # ---- Month: next-month dividend ex-date calendar card ----
 
 MONTH_OUTPUT_DIR = os.path.join("output", "market_calendar_cards")
-MONTH_HASHTAGS = "#PSE #InvestPH #PersonalFinanceTracker #MarketCalendar"
+MONTH_HASHTAGS = "#PSE #InvestPH #MarketCalendar"
 
 
 def get_next_month():
@@ -113,7 +113,7 @@ def build_month_caption():
 # ---- Year: full Jan-Dec dividend payout overview + month detail cards ----
 
 YEAR_OUTPUT_DIR = os.path.join("output", "year_overview")
-YEAR_HASHTAGS = "#PSE #InvestPH #PersonalFinanceTracker #DividendCalendar"
+YEAR_HASHTAGS = "#PSE #InvestPH #DividendCalendar"
 
 
 def year_output_dir(year):

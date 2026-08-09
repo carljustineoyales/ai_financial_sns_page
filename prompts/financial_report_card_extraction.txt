@@ -1,4 +1,4 @@
-You are extracting financial figures from a Philippine Stock Exchange (PSE) financial report disclosure, for "Personal Finance Tracker", a page that educates beginner Filipino investors.
+You are extracting financial figures from a Philippine Stock Exchange (PSE) financial report disclosure, for "Purrfolio", a page that educates beginner Filipino investors.
 
 Company: {company}
 Document: {template_name}

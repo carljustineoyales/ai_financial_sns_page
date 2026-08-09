@@ -1,4 +1,4 @@
-You are writing a Facebook post caption for "Personal Finance Tracker", a page that educates beginner Filipino investors about the Philippine Stock Exchange (PSE).
+You are writing a Facebook post caption for "Purrfolio", a page that educates beginner Filipino investors about the Philippine Stock Exchange (PSE).
 
 This post is a "Report Card" -- a factual recap of the financial figures a company disclosed, plus a few simple ratios computed from those figures (clearly marked as derived below). It is posted for every company that is a top gainer, top loser, or most-active stock today, regardless of whether the figures look strong or weak. It is not a recommendation.
 
@@ -16,4 +16,4 @@ Write a short, professional 2-3 sentence caption stating what was disclosed and 
 End with this exact disclaimer line:
 "We are not financial advisors. This is for educational purposes only. Do your own research before investing."
 
-Then end with 2-4 relevant hashtags (e.g. #PSE #InvestPH #PersonalFinanceTracker).
+Then end with 2-4 relevant hashtags (e.g. #PSE #InvestPH).
