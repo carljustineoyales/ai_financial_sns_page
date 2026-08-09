@@ -61,9 +61,12 @@ def extract_report_card(text, company, template_name):
     return json.loads(response)
 
 
-def generate_report_card_caption(symbol, period, figures_text):
+def generate_report_card_caption(symbol, period, figures_text, filed_on):
     prompt = _load_prompt("financial_report_card_caption.txt").format(
-        symbol=symbol, period=period or "unspecified period", figures=figures_text
+        symbol=symbol,
+        period=period or "unspecified period",
+        figures=figures_text,
+        filed_on=filed_on,
     )
 
     return llm.generate(prompt)

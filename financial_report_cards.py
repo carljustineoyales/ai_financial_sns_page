@@ -1,16 +1,21 @@
-"""Posts a "Report Card" to the configured Facebook Page whenever any
-PSE-listed company files a financial report disclosure -- a factual
-breakdown of whatever figures that specific filing discloses, plus a few
-simple ratios computed from those figures (never estimated by the LLM).
-Triggered mechanically by "they filed", never by whether the figures look
-good, so this never functions as a curated "top pick" -- every company
-gets the same treatment every time they file.
+"""Posts a "Report Card" to the configured Facebook Page for every company
+in today's top 10 gainers/losers/most-active -- a factual breakdown of
+whatever figures that company's most recent financial report discloses
+(regardless of how old that filing is), plus a few simple ratios computed
+from those figures (never estimated by the LLM). Triggered mechanically by
+"they're a top mover today", never by whether the figures look good, so
+this never functions as a curated "top pick" -- being a top mover is a
+factual, rules-based criterion (rank by price/volume), the same category
+as the old "they filed a report" trigger, not "looks fundamentally good."
+
+Runs after market close, since gainers/losers/most-active are end-of-day
+rankings -- see scripts/crontab.
 
 Deliberately overlaps in coverage with main.py: main.py posts a freeform
 narrative about whichever company files next, any disclosure type; this
-posts a structured figures table specifically for financial-report
-disclosures. Both can post about the same filing on the same day, in
-different formats -- that's intentional, not a duplicate-post bug.
+posts a structured figures table for whichever companies moved the most
+today. Both can post about the same filing on the same day, in different
+formats -- that's intentional, not a duplicate-post bug.
 """
 
 import json
@@ -27,16 +32,18 @@ from analysis.ratios import compute_derived_metrics, compute_valuation_metrics
 from dividend_graphics import DISCLAIMER
 from dividend_tracker import PSE_REIT_SYMBOLS
 from posters.preview_and_post import preview_and_post
-from scraper.market_movers import COMPANY_DIRECTORY_CACHE, refresh_company_directory
+from scraper.market_movers import compute_market_movers, refresh_company_directory
 from scraper.pse_edge import (
     download_pdf,
-    get_latest_financial_reports,
+    get_company_financial_reports,
     get_main_document_text,
     get_pdf_attachment,
     get_stock_data,
+    new_session,
 )
 
 OUTPUT_DIR = os.path.join("output", "financial_report_cards")
+TOP_N = 10
 
 # Row priority: most informative fields first, so if the fixed-canvas
 # table card has to truncate, the important rows survive. Each entry is
@@ -74,43 +81,40 @@ def _fail(stage, exc):
     print(f"[financial_report_cards] {stage} failed: {exc}", file=sys.stderr)
 
 
-def _company_lookup_by_name():
-    """{company name: {"symbol":, "cmpy_id":, "is_reit":}} for every
-    company in the cached PSE directory, for matching against
-    get_latest_financial_reports()'s free-text company field (which
-    carries no cmpy_id, unlike the dividend calendar's data source).
+def get_top_mover_disclosures():
+    """Today's top gainers/losers/most-active (deduped, market-wide, via
+    scraper.market_movers.compute_market_movers), each paired with their
+    most recent financial report disclosure regardless of how old it is
+    (scraper.pse_edge.get_company_financial_reports) -- as (disclosure,
+    company_info) pairs. Purely mechanical filter -- every top mover
+    qualifies, none excluded by how the figures look; a mover with no
+    financial report on file at all is skipped.
     """
-    if os.path.exists(COMPANY_DIRECTORY_CACHE):
-        with open(COMPANY_DIRECTORY_CACHE) as f:
-            companies = json.load(f)
-    else:
-        companies = refresh_company_directory()
+    companies = refresh_company_directory()
+    cmpy_id_by_symbol = {c["symbol"]: c.get("cmpy_id") for c in companies}
 
-    return {
-        c["company"]: {
-            "symbol": c["symbol"],
-            "cmpy_id": c.get("cmpy_id"),
-            "is_reit": c["symbol"] in PSE_REIT_SYMBOLS,
-        }
-        for c in companies
-    }
+    movers = compute_market_movers(companies, top_n=TOP_N)
+    symbols = sorted({entry["symbol"] for entries in movers.values() for entry in entries})
 
-
-def get_recent_financial_disclosures(limit=10):
-    """Recent financial report disclosures whose issuer resolves against
-    the PSE company directory, as (disclosure, company_info) pairs.
-    Purely mechanical filter -- every filing that resolves to a known
-    company qualifies, market-wide, none excluded by how the figures
-    look.
-    """
-    company_by_name = _company_lookup_by_name()
-    disclosures, session = get_latest_financial_reports(limit=limit)
-
+    session = new_session()
     matches = []
-    for disclosure in disclosures:
-        info = company_by_name.get(disclosure["company"])
-        if info:
-            matches.append((disclosure, info))
+    for symbol in symbols:
+        cmpy_id = cmpy_id_by_symbol.get(symbol)
+        if not cmpy_id:
+            print(f"{symbol}: no cmpy_id in company directory, skipping.")
+            continue
+
+        reports = get_company_financial_reports(cmpy_id, session=session)
+        if not reports:
+            print(f"{symbol}: no financial report on file, skipping.")
+            continue
+
+        info = {
+            "symbol": symbol,
+            "cmpy_id": cmpy_id,
+            "is_reit": symbol in PSE_REIT_SYMBOLS,
+        }
+        matches.append((reports[0], info))
 
     return matches, session
 
@@ -241,7 +245,9 @@ def _process_disclosure(disclosure, info, session):
 
     figures_text = _figures_text(data, computed, valuation)
     try:
-        caption = generate_report_card_caption(symbol, data.get("period"), figures_text)
+        caption = generate_report_card_caption(
+            symbol, data.get("period"), figures_text, disclosure["announce_datetime"]
+        )
     except Exception as e:
         _fail(f"{symbol}: generating caption", e)
         return
@@ -256,15 +262,15 @@ def main():
         print("No LLM provider is configured. Set ANTHROPIC_API_KEY and/or GEMINI_API_KEY in .env.")
         sys.exit(1)
 
-    print("Fetching recent financial report disclosures from PSE Edge...")
+    print("Fetching today's top movers and their most recent financial reports...")
     try:
-        matches, session = get_recent_financial_disclosures(limit=10)
+        matches, session = get_top_mover_disclosures()
     except Exception as e:
-        _fail("fetching disclosures", e)
+        _fail("fetching top movers / disclosures", e)
         sys.exit(1)
 
     if not matches:
-        print("No recent financial report disclosures found.")
+        print("No top movers with a financial report on file today.")
         return
 
     for disclosure, info in matches:
