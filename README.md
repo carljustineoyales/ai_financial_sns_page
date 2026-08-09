@@ -73,7 +73,11 @@ utility graphics rather than polished design) — `theme.py` holds the palette
 and layout constants, `primitives.py` holds shared drawing helpers, and each
 card type (table, calendar, dividend stamp, year overview, ticker grid) has
 its own module. [assets_logos.py](assets_logos.py) downloads/caches company
-logos used on those cards into `assets/logos/`.
+logos into `assets/logos/` — **manual only**, not called by any pipeline
+script. Rendering reads whatever's already cached and silently renders
+without a logo for anything missing, so a cron run never triggers an
+unattended download+decode of an externally-hosted image. Run
+`python assets_logos.py SYM1 SYM2 ...` or `--all` to backfill the cache.
 
 ## Pipeline
 
@@ -106,6 +110,7 @@ flowchart TD
         MP1 --> MP2
     end
     SHARED --> MP1
+    LOGOS -.-> MP2
     MP2 --> MPPNG[(3x Rendered PNG card)]
     MP2 --> MPCAP[3x Caption]
 
@@ -129,11 +134,11 @@ flowchart TD
         G1[build_month_card]
         G2[build_year_card /\nbuild_month_detail_cards]
         R["rendering/ package\ntheme + primitives + card renderers"]
-        LOGOS[(assets/logos/*.png\nvia assets_logos.py)]
+        LOGOS[("assets/logos/*.png\n(manual only -- python assets_logos.py;\nrendering silently skips a missing logo)")]
         PNG[(Rendered PNG card)]
         WL --> G1 --> R
         WL --> G2 --> R
-        LOGOS --> R
+        LOGOS -.-> R
         R --> PNG
     end
     OUT2 --> WL

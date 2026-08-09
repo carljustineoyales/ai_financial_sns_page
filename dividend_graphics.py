@@ -9,7 +9,6 @@ import os
 from datetime import date
 
 import rendering as renderer
-from assets_logos import ensure_logos
 from dividend_tracker import _parse_pse_date, get_period_range
 
 DISCLAIMER = (
@@ -100,8 +99,6 @@ def build_month_card(events, year, month, output_path):
         (None, DISCLAIMER),
     ]
 
-    ensure_logos(e["symbol"] for e in events)
-
     return renderer.render_dividend_stamp_card(title, subtitle, groups, footer_lines, output_path)
 
 
@@ -148,8 +145,6 @@ def build_year_card(months_data, year, output_path):
     title = f"{year} DIVIDEND PAYOUT CALENDAR"
     subtitle = "PSEi and REIT watchlist"
     footer_lines = [DISCLAIMER]
-
-    ensure_logos(symbol for symbols in months_data.values() for symbol in symbols)
 
     return renderer.render_year_overview(year, months_data, title, subtitle, footer_lines, output_path)
 

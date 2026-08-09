@@ -20,7 +20,6 @@ from datetime import date
 from dotenv import load_dotenv
 
 import rendering as renderer
-from assets_logos import ensure_logos
 from dividend_graphics import DISCLAIMER
 from posters.preview_and_post import preview_and_post
 from scraper.market_movers import get_or_compute_movers, refresh_company_directory
@@ -67,8 +66,6 @@ def _format_value(key, value):
 
 def build_movers_card(category, entries, output_path):
     spec = CATEGORIES[category]
-
-    ensure_logos(e["symbol"] for e in entries)
 
     rows = [
         {
