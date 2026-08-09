@@ -2,7 +2,7 @@
 
 from PIL import Image, ImageDraw
 
-from .primitives import _draw_title_header, _draw_watermark_inline, _font, _load_logo, _truncate_to_width
+from .primitives import _draw_title_header, _draw_watermark_inline, _font, _load_logo, _truncate_to_width, _watermark_reserve_width, _wrap_footer_lines_with_swatch
 from .theme import (
     BACKGROUND,
     BODY_FOOTER_GAP,
@@ -111,6 +111,10 @@ def render_dividend_stamp_card(title, subtitle, groups, footer_lines, output_pat
     col_width_last = col_width + (grid_width - col_width * cols)  # absorb rounding remainder in the last column
     content_width = col_width - 2 * card_pad_x
 
+    image = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
+    draw = ImageDraw.Draw(image)
+
+    footer_lines = _wrap_footer_lines_with_swatch(draw, footer_lines, footer_font, WIDTH - 2 * PADDING - 24 - _watermark_reserve_width(draw))
     footer_height = len(footer_lines) * FOOTER_LINE_HEIGHT + 32
     available_height = HEIGHT - PADDING - TITLE_BLOCK_HEIGHT - footer_height - FOOTER_BOTTOM_MARGIN - BODY_FOOTER_GAP
 
@@ -166,9 +170,6 @@ def render_dividend_stamp_card(title, subtitle, groups, footer_lines, output_pat
         if grid_height < available_height:
             extra_per_row = (available_height - grid_height) // len(row_heights)
             row_heights = [h + extra_per_row for h in row_heights]
-
-    image = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
-    draw = ImageDraw.Draw(image)
 
     y = _draw_title_header(draw, title, subtitle, title_font, subtitle_font)
 

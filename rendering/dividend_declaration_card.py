@@ -8,7 +8,7 @@ background or branding.
 
 from PIL import Image, ImageDraw
 
-from .primitives import _draw_watermark_inline, _font, _truncate_to_width, _wrap_to_width
+from .primitives import _draw_watermark_inline, _font, _truncate_to_width, _watermark_reserve_width, _wrap_footer_lines, _wrap_to_width
 from .theme import (
     BACKGROUND,
     CANVAS_SOFT,
@@ -104,6 +104,7 @@ def render_declaration_card(
     # top -- otherwise a short card leaves a large awkward gap before the
     # footer instead of a balanced layout.
     content_height = 36 + 100 + 24 + (56 if growth_pct is not None else 0) + 20 + rate_box_height + 40 + 2 * PILL_HEIGHT + PILL_GAP + PILL_GROUP_GAP
+    footer_lines = _wrap_footer_lines(draw, footer_lines, footer_font, WIDTH - 2 * PADDING - _watermark_reserve_width(draw))
     footer_height = len(footer_lines) * FOOTER_LINE_HEIGHT + 32
     available_height = HEIGHT - PADDING - footer_height - FOOTER_BOTTOM_MARGIN
     y = PADDING + max(0, (available_height - content_height) // 2)

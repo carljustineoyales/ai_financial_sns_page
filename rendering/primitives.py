@@ -41,6 +41,18 @@ def _draw_watermark_inline(draw, y):
     draw.text((x, y), WATERMARK_TEXT, font=font, fill=WATERMARK_COLOR)
 
 
+def _watermark_reserve_width(draw):
+    """Pixel width to subtract from a footer line's available wrap width
+    so no line -- not just a short one-liner, a long disclaimer can wrap
+    to several lines -- ever runs into the watermark sharing the last
+    line's row (see _draw_watermark_inline). Applied to every wrapped
+    line, not just the last, since which line ends up last isn't known
+    until after wrapping.
+    """
+    font = _font("DejaVuSans.ttf", 14)
+    return draw.textlength(WATERMARK_TEXT, font=font) + 16
+
+
 def _draw_title_header(draw, title, subtitle, title_font, subtitle_font):
     """Draws the title/subtitle block plus a rule line marking the
     boundary between it and the body content below, so header, body, and
@@ -97,6 +109,41 @@ def _wrap_to_width(draw, text, font, max_width, max_lines=2):
         lines[-1] = f"{lines[-1]} {' '.join(words[i:])}"
 
     return lines
+
+
+def _wrap_footer_lines(draw, footer_lines, font, max_width, max_lines_per_entry=8):
+    """Expands any footer line too wide to fit max_width into multiple
+    wrapped lines (via _wrap_to_width), so a long disclaimer doesn't
+    overflow the fixed-canvas footer -- callers must compute footer_height
+    from this function's *output*, not the original footer_lines, since
+    wrapping changes the line count. Every render_*_card function shares
+    this same plain-string footer_lines contract except
+    render_dividend_stamp_card, which uses (color, text) tuples for its
+    status-swatch legend -- see _wrap_footer_lines_with_swatch for that.
+    """
+    wrapped = []
+    for line in footer_lines:
+        if draw.textlength(line, font=font) <= max_width:
+            wrapped.append(line)
+        else:
+            wrapped.extend(_wrap_to_width(draw, line, font, max_width, max_lines=max_lines_per_entry))
+    return wrapped
+
+
+def _wrap_footer_lines_with_swatch(draw, footer_lines, font, max_width, max_lines_per_entry=8):
+    """Same wrapping behavior as _wrap_footer_lines, for
+    render_dividend_stamp_card's (color, text) tuple footer_lines --
+    a wrapped entry's color swatch is drawn once, on its first line only.
+    """
+    wrapped = []
+    for color, text in footer_lines:
+        if draw.textlength(text, font=font) <= max_width:
+            wrapped.append((color, text))
+        else:
+            lines = _wrap_to_width(draw, text, font, max_width, max_lines=max_lines_per_entry)
+            for i, line in enumerate(lines):
+                wrapped.append((color if i == 0 else None, line))
+    return wrapped
 
 
 _logo_cache = {}
