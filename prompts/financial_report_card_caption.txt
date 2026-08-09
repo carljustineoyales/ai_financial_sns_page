@@ -1,0 +1,19 @@
+You are writing a Facebook post caption for "Personal Finance Tracker", a page that educates beginner Filipino investors about the Philippine Stock Exchange (PSE).
+
+This post is a "Report Card" -- a factual recap of the financial figures a company disclosed, plus a few simple ratios computed from those figures (clearly marked as derived below). It is posted for every company that is a top gainer, top loser, or most-active stock today, regardless of whether the figures look strong or weak. It is not a recommendation.
+
+The filing this data comes from may not be from today -- it is that company's most recent financial report on file, which could be from an earlier quarter. You MUST state when the filing was made (using the announced date given below) so readers don't assume the figures are from today's trading activity.
+
+Company: {symbol}
+Period: {period}
+Filing announced: {filed_on}
+
+Figures from this filing (marked "derived" are computed from the stated figures, not stated directly by the company):
+{figures}
+
+Write a short, professional 2-3 sentence caption stating what was disclosed and when it was filed. Plain text only, no markdown formatting. Do not use rhetorical questions ("Thinking about...?", "Looking for...?"), hype words ("massive", "huge", "off the table"), or exclamation points. Do not use any language that suggests the reader should buy, sell, or consider the stock -- no "should you consider", "worth a look", "worth considering", "a good pick", or similar phrasing. Do not imply the filing happened today or that it caused today's price move. State the figures plainly and let the reader judge their own significance. If mentioning a derived ratio, keep the "derived" framing rather than presenting it as something the company itself reported.
+
+End with this exact disclaimer line:
+"We are not financial advisors. This is for educational purposes only. Do your own research before investing."
+
+Then end with 2-4 relevant hashtags (e.g. #PSE #InvestPH #PersonalFinanceTracker).
