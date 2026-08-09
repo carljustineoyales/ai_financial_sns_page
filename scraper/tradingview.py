@@ -18,11 +18,19 @@ BASE_URL = "https://www.tradingview.com"
 
 OG_IMAGE_RE = re.compile(r'<meta property="og:image" content="([^"]+)"')
 
+# When a symbol has no real logo, og:image falls back to this generic
+# TradingView placeholder instead of being omitted -- must be filtered out,
+# or every logo-less symbol would download and cache the same placeholder
+# image as if it were that company's actual logo.
+PLACEHOLDER_LOGO_URL = "https://static.tradingview.com/static/images/logo-preview.png"
+
 
 def get_company_logo_url(symbol, session=None):
     """Returns the absolute URL of symbol's logo image (PNG, via the
     page's og:image meta tag), or None if the symbol has no TradingView
-    page under this URL pattern, or the page has no such tag.
+    page under this URL pattern, the page has no such tag, or the tag
+    only points at TradingView's generic placeholder (i.e. no real logo
+    exists for this symbol).
     """
     session = session or new_session()
 
@@ -31,4 +39,8 @@ def get_company_logo_url(symbol, session=None):
         return None
 
     match = OG_IMAGE_RE.search(response.text)
-    return match.group(1) if match else None
+    if not match:
+        return None
+
+    logo_url = match.group(1)
+    return None if logo_url == PLACEHOLDER_LOGO_URL else logo_url
