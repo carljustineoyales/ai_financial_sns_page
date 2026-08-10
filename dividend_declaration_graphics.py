@@ -25,6 +25,10 @@ def build_declaration_card(symbol, entry, prior_entry, output_path):
     growth = _growth_pct(entry, prior_entry)
     footer_lines = [DISCLAIMER]
 
+    prior_rate_text = None
+    if prior_entry:
+        prior_rate_text = f"{_format_rate(prior_entry['dividend_rate'])}, {prior_entry['ex_dividend_date']}"
+
     return renderer.render_declaration_card(
         symbol,
         entry["dividend_type"],
@@ -34,6 +38,8 @@ def build_declaration_card(symbol, entry, prior_entry, output_path):
         growth,
         footer_lines,
         output_path,
+        prior_rate_text=prior_rate_text,
+        security_type=entry.get("security_type"),
     )
 
 

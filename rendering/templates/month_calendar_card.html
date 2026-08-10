@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{ title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  /* Rendered by rendering/calendar.py's render_month_calendar via
+     html_render.py: an agenda -- only days with at least one event get a
+     row, unlike the old Pillow renderer's always-draw-every-day Sun-Sat
+     grid -- so the card doesn't spend most of its area on blank cells. */
+  .agenda {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  /* .agenda-day and .agenda-date (divider row + fixed dow/dom badge) now
+     live in _shared.css, shared with dividend_declaration_card.html. */
+
+  .agenda-events {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px 28px;
+    padding-top: 4px;
+  }
+
+  .event {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .event img { width: 64px; height: 64px; object-fit: contain; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 9px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  /* Chip color/tint pairs come from STATUS_COLORS in theme.py -- a tint
+     of the status color as background, a darkened shade of the same hue
+     as text (not the raw accent/trading colors) so the label clears
+     WCAG AA against the tint instead of sitting at a washed-out ~2.5:1.
+     .chip--passed was the worst offender -- --mute text on --canvas-soft
+     is two near-identical greys -- so it gets real ink instead. */
+  .chip--paid  { background: rgba(14,203,129,0.18); color: #067a4d; }
+  .chip--upcoming { background: rgba(0,112,243,0.16); color: #0054bd; }
+  .chip--passed { background: rgba(238,0,0,0.14); color: var(--trading-down); }
+  /* Neutral chip for the legend's EX/PAY (type) entries -- these must
+     NOT reuse a status color, or the legend itself implies EX=blue and
+     PAY=green, when really either type can carry any status color. */
+  .chip--neutral { background: var(--canvas-soft); color: var(--ink); border: 1px solid var(--faint); }
+
+  .event-more { font-size: 14px; color: var(--mute); }
+
+  /* ---- Legend: spells out what EX/PAY and each chip color mean, since
+     neither is self-evident from a two/three-letter chip alone. ---- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 28px;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    color: var(--body);
+  }
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="card__title-header">
+      <h1 class="card__title">{{ title }}</h1>
+      <p class="card__subtitle">{{ subtitle }}</p>
+    </div>
+
+    <div class="card__body">
+      <div class="legend">
+        <span class="legend-item"><span class="chip chip--neutral">EX</span>Ex-dividend date</span>
+        <span class="legend-item"><span class="chip chip--neutral">PAY</span>Payment date</span>
+        <span class="legend-item"><span class="chip chip--upcoming">&nbsp;&nbsp;</span>Upcoming</span>
+        <span class="legend-item"><span class="chip chip--paid">&nbsp;&nbsp;</span>Paid</span>
+        <span class="legend-item"><span class="chip chip--passed">&nbsp;&nbsp;</span>Ex-date passed</span>
+      </div>
+
+      <div class="agenda">
+        {% for day in days %}
+        <div class="agenda-day">
+          <div class="agenda-date">
+            <span class="dow">{{ day.dow }}</span>
+            <span class="dom">{{ day.dom }}</span>
+          </div>
+          <div class="agenda-events">
+            {% for event in day.events %}
+            <div class="event"><span class="chip chip--{{ event.chip_class }}">{{ event.chip_text }}</span>{% if event.logo_src %}<img src="{{ event.logo_src }}" alt="" />{% endif %}{{ event.symbol }}</div>
+            {% endfor %}
+            {% if day.remaining %}<span class="event-more">+{{ day.remaining }} more</span>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card__footer">
+      <p class="footer-text">{{ footer_text }}</p>
+      <span class="watermark">{{ watermark }}</span>
+    </div>
+  </div>
+
+</body>
+</html>

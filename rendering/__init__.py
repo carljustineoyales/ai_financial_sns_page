@@ -1,7 +1,11 @@
-"""Renders simple table-style graphic cards to PNG using Pillow.
+"""Renders simple table-style graphic cards to PNG.
 
 Deliberately simple -- these are Facebook utility graphics (dividend
-schedules, etc.), not polished design artifacts.
+schedules, etc.), not polished design artifacts. Every renderer except
+render_dividend_stamp_card is HTML/CSS (rendering/templates/*.html,
+rendered via headless Chromium -- see html_render.py); dividend_stamp
+stays Pillow-based (rendering/primitives.py), the one card type with no
+HTML template.
 """
 
 from .theme import STATUS_COLORS, WIDTH, HEIGHT, PADDING, WATERMARK_TEXT

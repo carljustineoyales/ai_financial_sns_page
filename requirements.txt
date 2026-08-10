@@ -5,3 +5,5 @@ anthropic
 google-genai
 python-dotenv
 Pillow
+Jinja2
+playwright

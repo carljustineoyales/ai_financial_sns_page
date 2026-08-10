@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{ title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  /* Rendered by rendering/ticker_grid.py's render_ticker_logo_grid via
+     html_render.py: a flat, uncapped, near-square grid -- cols =
+     round(sqrt(n)), passed in as an inline style on .logo-grid below
+     since Jinja/CSS can't compute that. */
+  /* --logo-size is set inline on .logo-grid (px), computed in Python from
+     the item count so a long ticker list shrinks to fit the fixed
+     1080x1080 canvas instead of overflowing it -- mirrors the old Pillow
+     renderer's fill-to-space cell sizing (rendering/ticker_grid.py). */
+  .logo-grid {
+    height: 100%;
+    display: grid;
+    gap: 16px;
+    align-content: center;
+    justify-content: center;
+  }
+
+  .logo-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .logo-cell img,
+  .logo-cell .fallback {
+    width: var(--logo-size);
+    height: var(--logo-size);
+    object-fit: contain;
+  }
+  .logo-cell .fallback {
+    border-radius: 6px;
+    background: var(--canvas-soft);
+    border: 1px solid var(--hairline);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--ink);
+  }
+
+  .logo-cell .ticker {
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--ink);
+  }
+  .logo-cell .company-name {
+    font-size: 16px;
+    color: var(--mute);
+    text-align: center;
+    line-height: 1.3;
+    max-width: calc(var(--logo-size) + 20px);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="card__title-header">
+      <h1 class="card__title">{{ title }}</h1>
+      <p class="card__subtitle">{{ subtitle }}</p>
+    </div>
+
+    <div class="card__body">
+      <div class="logo-grid" style="grid-template-columns: repeat({{ cols }}, 1fr); --logo-size: {{ logo_size_px }}px;">
+        {% for entry in entries %}
+        <div class="logo-cell">
+          {% if entry.logo_src %}<img src="{{ entry.logo_src }}" alt="" />{% else %}<div class="fallback">{{ entry.symbol }}</div>{% endif %}
+          <span class="ticker">{{ entry.symbol }}</span>
+          <span class="company-name">{{ entry.company_name }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card__footer">
+      <p class="footer-text">{{ footer_text }}</p>
+      <span class="watermark">{{ watermark }}</span>
+    </div>
+  </div>
+
+</body>
+</html>

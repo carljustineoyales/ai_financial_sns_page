@@ -51,6 +51,12 @@ def get_new_declarations(window_days=EX_DATE_WINDOW_DAYS):
     project's other triggers. Declarations already posted (posted.json
     under their edge_no) are filtered out by _process_declaration itself,
     not here.
+
+    Preferred-share declarations (security_type anything other than
+    COMMON, e.g. GLOBA/GLOPA) are skipped -- a company can have several
+    concurrent preferred series sharing its common-stock ticker/logo with
+    no reliable per-year comparable declaration to match against (see
+    _find_prior_year_entry), and covering them isn't this feed's focus.
     """
     companies = refresh_company_directory()
     symbol_by_cmpy_id = {c["cmpy_id"]: c["symbol"] for c in companies if c.get("cmpy_id")}
@@ -60,6 +66,9 @@ def get_new_declarations(window_days=EX_DATE_WINDOW_DAYS):
 
     matches = []
     for declaration in declarations:
+        if declaration.get("security_type") != "COMMON":
+            continue
+
         symbol = symbol_by_cmpy_id.get(declaration["cmpy_id"])
         if not symbol:
             print(f"{declaration['company']}: no matching symbol in company directory, skipping.")
@@ -79,10 +88,20 @@ def get_new_declarations(window_days=EX_DATE_WINDOW_DAYS):
     return matches
 
 
-def _find_prior_year_entry(entries, target_edge_no, target_date):
+def _find_prior_year_entry(entries, target_edge_no, target_date, target_security_type):
+    """Only considers entries with the same security_type as the target --
+    a company can have several concurrent instruments under one cmpy_id
+    (e.g. GLO's COMMON stock plus preferred series GLOBA/GLOBB, each with
+    its own rate and its own history), and matching by date proximity
+    alone would happily pair a preferred-share declaration with last
+    year's common-share one just because it's the closest date, producing
+    a nonsensical rate-vs-prior-rate comparison.
+    """
     best, best_diff = None, None
     for e in entries:
         if e["edge_no"] == target_edge_no:
+            continue
+        if e.get("security_type") != target_security_type:
             continue
         try:
             e_date = datetime.strptime(e["ex_dividend_date"], "%b %d, %Y").date()
@@ -126,7 +145,7 @@ def _process_declaration(declaration, symbol):
 
     try:
         target_date = datetime.strptime(entry["ex_dividend_date"], "%b %d, %Y").date()
-        prior_entry = _find_prior_year_entry(history, edge_no, target_date)
+        prior_entry = _find_prior_year_entry(history, edge_no, target_date, entry.get("security_type"))
     except (ValueError, TypeError):
         prior_entry = None
 

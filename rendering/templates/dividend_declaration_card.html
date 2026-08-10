@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{ symbol }} Dividend Declaration Card</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  /*
+    Rendered by rendering/html_render.py (Playwright/Chromium) into the
+    actual PNGs under output/dividend_declarations/ -- this template is
+    the source of truth for the card's layout, not a mockup.
+    Loads the actual Geist Sans/Geist Mono webfonts (DESIGN.md's real
+    brand fonts) via the Google Fonts <link> above, falling back to
+    Inter/JetBrains Mono if that fails to load.
+    Shared tokens (including --pill-gap), .card, .card__footer,
+    .footer-text, and .watermark all come from _shared.css -- only pulls
+    in what's unique to this card's eyebrow+ticker header and its own
+    body layout (no shared title/subtitle header, unlike every other
+    template in this directory).
+  */
+
+  /* ---- Header: eyebrow + ticker + logo, then a hairline rule ---- */
+  .card__header {
+    flex-shrink: 0;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: 0.04em;
+    color: var(--mute);
+    text-transform: uppercase;
+    margin: 0 0 14px;
+  }
+
+  .ticker-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    min-height: 100px;
+  }
+
+  .ticker-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    background: var(--canvas-soft);
+    border: 1px solid var(--hairline);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 28px;
+    color: var(--faint);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .ticker-logo img { width: 100%; height: 100%; object-fit: contain; }
+
+  .ticker-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  /* Title = company name (the primary identity), subtitle = ticker
+     symbol -- swapped from the old layout, which led with the bare
+     ticker in giant type and the company only ever appeared as
+     alt text on the logo. */
+  .ticker-title {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 44px;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ticker-subtitle {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.04em;
+    color: var(--mute);
+    text-transform: uppercase;
+  }
+
+  .rule {
+    border: none;
+    border-top: 1px solid var(--hairline);
+    margin: 24px 0 0;
+  }
+
+  /* ---- Middle: growth line + rate box + date pills, vertically
+     centered in the space between the header rule and the footer,
+     same as _y = PADDING + (available_height - content_height) / 2 in
+     the Python renderer ---- */
+  .card__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 40px;
+    min-height: 0;
+  }
+
+  .growth-line {
+    font-weight: 700;
+    font-size: 34px;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+  }
+  .growth-line.up { color: var(--trading-up); }
+  .growth-line.down { color: var(--trading-down); }
+  /* Omit .growth-line entirely when there's no comparable prior-year
+     declaration (growth_pct is None in the Python renderer). */
+
+  .rate-box {
+    background: var(--canvas-soft);
+    border-radius: var(--radius-card);
+    padding: 24px;
+  }
+
+  .rate-label {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.04em;
+    color: var(--mute);
+    text-transform: uppercase;
+    margin: 0 0 16px;
+  }
+
+  .rate-value {
+    font-weight: 700;
+    font-size: 56px;
+    line-height: 1.1;
+    color: var(--ink);
+    margin: 0;
+    /* Long/verbose preferred-share rate text drops to a smaller size
+       and wraps (up to 3 lines) instead of truncating -- see
+       _fit_rate_lines in the Python renderer. Apply a `.rate-value--long`
+       modifier (font-size ~30px) when previewing that case. */
+  }
+  .rate-value--long { font-size: 30px; line-height: 1.3; }
+
+  .rate-prior {
+    font-size: 16px;
+    color: var(--mute);
+    margin: 10px 0 0;
+  }
+
+  .date-pills {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pill-gap);
+  }
+
+  /* Row/badge shape reused from _shared.css: .agenda-day (+ --stretch,
+     since both badges here should match height, unlike agenda-day's
+     default flex-start for a variable-height events list) and
+     .agenda-date (+ --flex, for a single-line label instead of the
+     fixed-width dow/dom stack). .date-pill__date has no shared
+     equivalent -- it's plain centered text, not a badge. */
+  .date-pill__date {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 28px;
+    color: var(--ink);
+  }
+
+  /* .card__footer, .footer-text, .watermark now come from _shared.css. */
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="card__header">
+      <p class="eyebrow">{{ eyebrow }}</p>
+      <div class="ticker-row">
+        <div class="ticker-logo">
+          {% if logo_src %}<img src="{{ logo_src }}" alt="" />{% else %}{{ symbol }}{% endif %}
+        </div>
+        <div class="ticker-text">
+          <div class="ticker-title">{{ company_name }}</div>
+          <div class="ticker-subtitle">{{ ticker_subtitle }}</div>
+        </div>
+      </div>
+      <hr class="rule" />
+    </div>
+
+    <div class="card__body">
+      {% if growth %}
+      <div class="growth-line {{ growth.direction_class }}">{{ growth.text }}</div>
+      {% endif %}
+
+      <div class="rate-box">
+        <p class="rate-label">Dividend Rate</p>
+        <p class="rate-value{% if rate_is_long %} rate-value--long{% endif %}">{{ rate_text }}</p>
+        {% if prior_rate_text %}<p class="rate-prior">Previously {{ prior_rate_text }}</p>{% endif %}
+      </div>
+
+      <div class="date-pills">
+        <div class="agenda-day agenda-day--stretch">
+          <span class="agenda-date agenda-date--flex">Ex-Dividend Date</span>
+          <span class="date-pill__date">{{ ex_date_text }}</span>
+        </div>
+        <div class="agenda-day agenda-day--stretch">
+          <span class="agenda-date agenda-date--flex">Payment Date</span>
+          <span class="date-pill__date">{{ payment_date_text }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card__footer">
+      <p class="footer-text">{{ footer_text }}</p>
+      <span class="watermark">{{ watermark }}</span>
+    </div>
+  </div>
+
+</body>
+</html>

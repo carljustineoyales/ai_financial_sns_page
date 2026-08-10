@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{ title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  /* Rendered by rendering/year_overview.py's render_year_overview via
+     html_render.py: a 3x4 grid of month boxes, each with a mini logo
+     grid (up to 4 tickers). */
+  .month-grid {
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 0;
+  }
+
+  .month-box {
+    border: 1px solid var(--mute);
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+  }
+  /* Checkerboard fill -- a plain shared background reads too flat once
+     every one of the 12 cells is otherwise identical. */
+  .month-box:nth-child(odd) { background: var(--canvas-soft); }
+  .month-box:nth-child(even) { background: var(--canvas); }
+
+  .month-label {
+    text-align: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--ink);
+    margin: 0 0 10px;
+  }
+
+  .month-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ticker-mini-grid {
+    display: flex;
+    gap: 8px;
+  }
+  .ticker-mini {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .ticker-mini img,
+  .ticker-mini .fallback {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+  }
+  .ticker-mini .fallback {
+    border: 1px solid var(--mute);
+    border-radius: 6px;
+    background: var(--canvas);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .ticker-mini span.label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .month-empty {
+    font-size: 13px;
+    color: var(--mute);
+  }
+
+  .month-footer {
+    text-align: center;
+    font-size: 13px;
+    color: var(--mute);
+    height: 26px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="card__title-header">
+      <h1 class="card__title">{{ title }}</h1>
+      <p class="card__subtitle">{{ subtitle }}</p>
+    </div>
+
+    <div class="card__body">
+      <div class="month-grid">
+        {% for month in months %}
+        <div class="month-box">
+          <p class="month-label">{{ month.label }}</p>
+          <div class="month-body">
+            {% if month.entries %}
+            <div class="ticker-mini-grid">
+              {% for entry in month.entries %}
+              <div class="ticker-mini">
+                {% if entry.logo_src %}<img src="{{ entry.logo_src }}" alt="" />{% else %}<div class="fallback">{{ entry.symbol }}</div>{% endif %}
+                <span class="label">{{ entry.symbol }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="month-empty">No payouts scheduled</p>
+            {% endif %}
+          </div>
+          <p class="month-footer">{% if month.remaining %}+{{ month.remaining }}{% endif %}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card__footer">
+      <p class="footer-text">{{ footer_text }}</p>
+      <span class="watermark">{{ watermark }}</span>
+    </div>
+  </div>
+
+</body>
+</html>

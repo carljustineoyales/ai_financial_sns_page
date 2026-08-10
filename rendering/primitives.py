@@ -1,4 +1,12 @@
-"""Shared drawing helpers used by every card renderer in this package."""
+"""Shared helpers used by every card renderer in this package. _font,
+_draw_title_header, _draw_watermark_inline, _watermark_reserve_width,
+_truncate_to_width, _load_logo, and _wrap_footer_lines_with_swatch are
+Pillow drawing helpers kept only for dividend_stamp.py, the one renderer
+still Pillow-based (it has no rendering/templates/*.html counterpart).
+Every other renderer in this package is HTML/Playwright-based (see
+html_render.py) and uses _logo_src/_company_name/_estimate_footer_line_count
+instead.
+"""
 
 import json
 import os
@@ -8,12 +16,8 @@ from PIL import Image, ImageFont
 
 from .theme import (
     ASSETS_LOGO_DIR,
-    CHIP_HEIGHT,
-    CHIP_PADDING_X,
-    CHIP_TINT_BASE,
     COMPANY_DIRECTORY_CACHE,
     FONT_DIR,
-    LOGO_GAP,
     PADDING,
     SECTION_RULE_COLOR,
     SUBTITLE_COLOR,
@@ -111,25 +115,6 @@ def _wrap_to_width(draw, text, font, max_width, max_lines=2):
     return lines
 
 
-def _wrap_footer_lines(draw, footer_lines, font, max_width, max_lines_per_entry=8):
-    """Expands any footer line too wide to fit max_width into multiple
-    wrapped lines (via _wrap_to_width), so a long disclaimer doesn't
-    overflow the fixed-canvas footer -- callers must compute footer_height
-    from this function's *output*, not the original footer_lines, since
-    wrapping changes the line count. Every render_*_card function shares
-    this same plain-string footer_lines contract except
-    render_dividend_stamp_card, which uses (color, text) tuples for its
-    status-swatch legend -- see _wrap_footer_lines_with_swatch for that.
-    """
-    wrapped = []
-    for line in footer_lines:
-        if draw.textlength(line, font=font) <= max_width:
-            wrapped.append(line)
-        else:
-            wrapped.extend(_wrap_to_width(draw, line, font, max_width, max_lines=max_lines_per_entry))
-    return wrapped
-
-
 def _wrap_footer_lines_with_swatch(draw, footer_lines, font, max_width, max_lines_per_entry=8):
     """Same wrapping behavior as _wrap_footer_lines, for
     render_dividend_stamp_card's (color, text) tuple footer_lines --
@@ -186,41 +171,29 @@ def _load_logo(symbol, size):
     return logo
 
 
-def _tint_chip(hex_color, amount=0.82, base=CHIP_TINT_BASE):
-    """Blends hex_color toward `base` -- the current theme's own chip
-    surface tone (a dark elevated surface in dark mode, a soft-light
-    surface in light mode) -- so status chips read as a tinted pill that
-    matches the canvas instead of a fixed pastel meant for one mode only.
+def _estimate_footer_line_count(text, width_px, font_px=15, avg_char_width_ratio=0.52):
+    """Rough line count for wrapped footer text at width_px, used only to
+    budget how many rows/items a variable-length card body can show
+    before it'd push the footer past the fixed 1080px canvas -- the
+    browser does the actual wrapping (see rendering/templates/_shared.css
+    .footer-text), so this only needs to be a reasonable estimate, not
+    pixel-exact.
     """
-    hex_color = hex_color.lstrip("#")
-    base = base.lstrip("#")
-    r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
-    br, bg, bb = int(base[0:2], 16), int(base[2:4], 16), int(base[4:6], 16)
-    r = int(r + (br - r) * amount)
-    g = int(g + (bg - g) * amount)
-    b = int(b + (bb - b) * amount)
-    return f"#{r:02x}{g:02x}{b:02x}"
+    chars_per_line = max(1, int(width_px / (font_px * avg_char_width_ratio)))
+    return max(1, -(-len(text) // chars_per_line))
 
 
-def _draw_chip(image, draw, x, y, text, font, color, symbol=None):
-    logo_offset = 0
-    if symbol:
-        logo = _load_logo(symbol, CHIP_HEIGHT)
-        if logo:
-            image.paste(logo, (int(x), int(y)), logo)
-            logo_offset = CHIP_HEIGHT + LOGO_GAP
-
-    chip_x = x + logo_offset
-    bg = _tint_chip(color)
-    text_width = draw.textlength(text, font=font)
-    chip_width = text_width + 2 * CHIP_PADDING_X
-    draw.rounded_rectangle(
-        [chip_x, y, chip_x + chip_width, y + CHIP_HEIGHT],
-        radius=CHIP_HEIGHT / 2,
-        fill=bg,
-    )
-    draw.text((chip_x + CHIP_PADDING_X, y), text, font=font, fill=color)
-    return logo_offset + chip_width
+def _logo_src(symbol):
+    """Path to symbol's cached logo, relative to a rendered template's
+    temp file location (rendering/templates/<tmpfile>.html), or None if
+    no logo is cached -- callers' templates fall back to plain
+    ticker/symbol text in that case, same graceful-absence behavior the
+    old Pillow renderers had via _load_logo returning None.
+    """
+    path = os.path.join(ASSETS_LOGO_DIR, f"{symbol}.png")
+    if not os.path.exists(path):
+        return None
+    return os.path.join("..", "..", path)
 
 
 _company_name_cache = None
