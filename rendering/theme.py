@@ -67,7 +67,6 @@ ROW_ALT_BG = CANVAS_SOFT
 RULE_COLOR = HAIRLINE
 SECTION_RULE_COLOR = HAIRLINE
 FOOTER_COLOR = BODY
-CHIP_TINT_BASE = CANVAS_SOFT
 # DESIGN.md: "the one place color is allowed to exist is the hero...
 # everywhere else, restraint" -- a corner signature isn't a link, pricing
 # highlight, or focus signal, so it stays muted ink rather than accent.
@@ -87,17 +86,13 @@ WATERMARK_COLOR = WATERMARK_TEXT_COLOR
 
 # Trading-semantic status colors: PAID reuses trading-up green (settled,
 # positive), UPCOMING reuses info/accent blue (neutral/future), EX-DATE
-# PASSED stays a neutral muted tone rather than the accent blue -- the
-# accent is reserved for the wordmark and small emphasis per DESIGN.md,
-# not repeated per-row status borders.
+# PASSED reuses trading-down red -- a passed ex-date is a missed-window
+# signal, not a neutral one, so it gets the same urgency color as a
+# price decline rather than blending into a muted grey.
 STATUS_COLORS = {
     "PAID": TRADING_UP,
-    "EX-DATE PASSED": BODY_MID,
+    "EX-DATE PASSED": TRADING_DOWN,
     "UPCOMING": INFO,
 }
-
-CHIP_PADDING_X = 6
-CHIP_HEIGHT = 16
-LOGO_GAP = 4
 
 COMPANY_DIRECTORY_CACHE = os.path.join("data", "pse_companies.json")

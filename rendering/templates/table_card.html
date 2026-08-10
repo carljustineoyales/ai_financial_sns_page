@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{ title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  /* Rendered by rendering/table.py's render_table_card via html_render.py. */
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .table thead th {
+    text-align: left;
+    background: var(--canvas-soft);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--ink);
+    padding: 8px 12px;
+  }
+  .table thead tr :first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+  .table thead tr :last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+  .table tbody td {
+    padding: 8px 12px;
+    font-size: 18px;
+    color: var(--ink);
+    height: 50px; /* ROW_HEIGHT */
+  }
+
+  .table tbody tr:nth-child(even) { background: var(--canvas-soft); } /* ROW_ALT_BG */
+
+  .cell-ticker {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* LOGO_GAP */
+  }
+  .cell-ticker img { width: 24px; height: 24px; object-fit: contain; }
+
+  .more-note {
+    font-size: 15px;
+    color: var(--mute);
+    padding: 14px 0 0 12px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="card__title-header">
+      <h1 class="card__title">{{ title }}</h1>
+      <p class="card__subtitle">{{ subtitle }}</p>
+    </div>
+
+    <div class="card__body">
+      <table class="table">
+        <colgroup>
+          {% for column in columns %}<col style="width:{{ column.width_pct }}%" />{% endfor %}
+        </colgroup>
+        <thead>
+          <tr>
+            {% for column in columns %}<th>{{ column.label }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr style="height:{{ row_height_px }}px">
+            {% for cell in row %}
+            <td>
+              {% if cell.is_ticker %}<div class="cell-ticker">{% if cell.logo_src %}<img src="{{ cell.logo_src }}" alt="" />{% endif %}{{ cell.value }}</div>
+              {% else %}{{ cell.value }}{% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if more_note %}
+      <!-- If more rows exist than the fixed canvas can fit, a "+N more"
+           note is appended below the table instead of overflowing. -->
+      <p class="more-note">{{ more_note }}</p>
+      {% endif %}
+    </div>
+
+    <div class="card__footer">
+      <p class="footer-text">{{ footer_text }}</p>
+      <span class="watermark">{{ watermark }}</span>
+    </div>
+  </div>
+
+</body>
+</html>

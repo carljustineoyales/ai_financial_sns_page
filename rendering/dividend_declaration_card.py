@@ -3,165 +3,69 @@ big ticker + type, a colored growth line, the rate as a hero number, and
 two date pills. Structurally inspired by a reference competitor card, but
 built entirely from this project's own brand palette (rendering/theme.py,
 sourced from DESIGN.md) and rounded.pill token, not the reference's photo
-background or branding.
+background or branding. Rendered from rendering/templates/dividend_declaration_card.html
+via html_render.render_card -- see that module for the HTML->PNG pipeline.
 """
 
-from PIL import Image, ImageDraw
+from .html_render import render_card
+from .primitives import _company_name, _logo_src
+from .theme import WATERMARK_TEXT
 
-from .primitives import _draw_watermark_inline, _font, _load_logo, _truncate_to_width, _watermark_reserve_width, _wrap_footer_lines, _wrap_to_width
-from .theme import (
-    BACKGROUND,
-    CANVAS_SOFT,
-    FOOTER_BOTTOM_MARGIN,
-    FOOTER_COLOR,
-    FOOTER_LINE_HEIGHT,
-    HAIRLINE,
-    HEIGHT,
-    INK,
-    INK_SOFT,
-    MUTE,
-    PADDING,
-    RADIUS_CARD,
-    SECTION_RULE_COLOR,
-    TRADING_DOWN,
-    TRADING_UP,
-    WIDTH,
-)
-
-MONO_FONT_FILE = "DejaVuSansMono-Bold.ttf"
-
-PILL_HEIGHT = 64
-PILL_GAP = 16
-PILL_GROUP_GAP = 20
-
-
-def _draw_date_pill(draw, x, y, width, date_text, label_text, date_font, label_font):
-    """A dark rounded-pill holding the date, with its label to the right
-    -- the same two-part row shape as the reference image's ex-date/
-    payment-date rows, in this project's own ink/canvas palette instead
-    of the reference's coral/cream.
-    """
-    pill_width = 190
-    draw.rounded_rectangle([x, y, x + pill_width, y + PILL_HEIGHT], radius=PILL_HEIGHT / 2, fill=INK)
-    date_width = draw.textlength(date_text, font=date_font)
-    date_x = x + (pill_width - date_width) / 2
-    draw.text((date_x, y + (PILL_HEIGHT - 26) / 2), date_text, font=date_font, fill=BACKGROUND)
-
-    label_x = x + pill_width + 20
-    label_width = width - pill_width - 20
-    label_text = _truncate_to_width(draw, label_text, label_font, label_width)
-    draw.text((label_x, y + (PILL_HEIGHT - 24) / 2), label_text, font=label_font, fill=INK_SOFT)
-
-
-def _fit_rate_lines(draw, rate_text, max_width):
-    """PSE's own rate text ranges from a short number ("PhP11.758 per
-    share") to a full verbose preferred-share description running 100+
-    characters. Rather than truncating the long ones with an ellipsis
-    (losing the actual rate terms), try the big hero-number size first on
-    one line, and only drop to a smaller size + wrap (up to 3 lines) when
-    it doesn't fit -- short rates keep the punchy big-number look, long
-    ones stay fully readable. Returns (lines, font, line_height).
-    """
-    hero_font = _font("DejaVuSans-Bold.ttf", 56)
-    if draw.textlength(rate_text, font=hero_font) <= max_width:
-        return [rate_text], hero_font, 62
-
-    wrap_font = _font("DejaVuSans-Bold.ttf", 30)
-    lines = _wrap_to_width(draw, rate_text, wrap_font, max_width, max_lines=3)
-    return lines, wrap_font, 36
+# Above this length, the rate text drops from the big hero-number size
+# to a smaller one (see .rate-value--long in the template) instead of
+# overflowing the rate box -- PSE's own rate text ranges from a short
+# number ("PhP11.758 per share") to a full verbose preferred-share
+# description running 100+ characters.
+RATE_HERO_LENGTH_LIMIT = 26
 
 
 def render_declaration_card(
-    symbol, dividend_type, rate_text, ex_date_text, payment_date_text, growth_pct, footer_lines, output_path
+    symbol, dividend_type, rate_text, ex_date_text, payment_date_text, growth_pct, footer_lines, output_path,
+    prior_rate_text=None, security_type=None,
 ):
     """growth_pct: signed float (e.g. 3.7959) or None to omit the growth
     line entirely (no comparable prior-year declaration was found).
+    footer_lines: list of strings, joined into one wrapped paragraph
+    (the browser handles wrapping, unlike the old fixed-canvas Pillow
+    renderer's manual line-wrap math).
+    prior_rate_text: the ~1-year-prior declaration's formatted rate text
+    (e.g. "Php61.179 per share, Aug 19, 2025"), shown as a muted subtext
+    under the rate box, or None to omit it -- same "no comparable
+    prior-year declaration" case growth_pct=None covers.
+    security_type: PSE Edge's "Type of Security" for this declaration
+    (e.g. "COMMON", "GLOBA", "GLOPA") -- a company can have several
+    concurrent instruments under one ticker/logo (common stock plus one
+    or more preferred series), so a non-COMMON value is appended to the
+    ticker subtitle (e.g. "GLO · GLOBA") to disambiguate which
+    instrument this card is about. COMMON itself is the default case and
+    never shown -- only preferred series need the extra label.
     """
-    # DESIGN.md: "the one place color is allowed to exist is the hero...
-    # everywhere else, restraint" / "don't fill large surfaces with the
-    # accent colors" / "don't add a second decorative system." This card
-    # has no hero mesh gradient, so it stays ink-on-white throughout --
-    # ACCENT isn't used anywhere here. The "eyebrow" (small uppercase
-    # Geist Mono label, DESIGN.md's own pattern for section labels) does
-    # the emphasis work color did before.
-    eyebrow_font = _font(MONO_FONT_FILE, 22)
-    ticker_font = _font("DejaVuSans-Bold.ttf", 96)
-    growth_font = _font("DejaVuSans-Bold.ttf", 34)
-    rate_label_font = _font(MONO_FONT_FILE, 18)
-    pill_date_font = _font("DejaVuSans-Bold.ttf", 22)
-    pill_label_font = _font("DejaVuSans-Bold.ttf", 22)
-    footer_font = _font("DejaVuSans.ttf", 15)
-
-    image = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
-    draw = ImageDraw.Draw(image)
-
-    rate_lines, rate_font, rate_line_height = _fit_rate_lines(draw, rate_text, WIDTH - 2 * PADDING - 48)
-    rate_box_height = 24 + 24 + 8 + len(rate_lines) * rate_line_height + 20
-
-    # Content height varies (the growth line is optional, the rate box
-    # grows for long/wrapped rate text), so the block is vertically
-    # centered in the space above the footer rather than anchored to the
-    # top -- otherwise a short card leaves a large awkward gap before the
-    # footer instead of a balanced layout.
-    content_height = 36 + 100 + 24 + (56 if growth_pct is not None else 0) + 20 + rate_box_height + 40 + 2 * PILL_HEIGHT + PILL_GAP + PILL_GROUP_GAP
-    footer_lines = _wrap_footer_lines(draw, footer_lines, footer_font, WIDTH - 2 * PADDING - _watermark_reserve_width(draw))
-    footer_height = len(footer_lines) * FOOTER_LINE_HEIGHT + 32
-    available_height = HEIGHT - PADDING - footer_height - FOOTER_BOTTOM_MARGIN
-    y = PADDING + max(0, (available_height - content_height) // 2)
-
-    draw.text((PADDING, y), f"{dividend_type.upper()} DIVIDEND DECLARATION", font=eyebrow_font, fill=MUTE)
-    y += 36
-
-    # Logo sits to the left of the ticker, at roughly the font's cap
-    # height so it reads as sitting on the same baseline rather than
-    # floating -- falls back to just the ticker text (unchanged layout)
-    # when no logo is cached for this symbol, same graceful-absence
-    # behavior every other card's logo usage already has.
-    logo_size = 80
-    logo = _load_logo(symbol, logo_size)
-    ticker_x = PADDING
-    if logo:
-        logo_y = y + (100 - logo_size) // 2
-        image.paste(logo, (PADDING, int(logo_y)), logo)
-        ticker_x = PADDING + logo_size + 20
-    draw.text((ticker_x, y), symbol, font=ticker_font, fill=INK)
-    y += 100
-    draw.line([(PADDING, y), (WIDTH - PADDING, y)], fill=HAIRLINE, width=1)
-    y += 24
-
+    growth = None
     if growth_pct is not None:
-        direction = "HIGHER" if growth_pct >= 0 else "LOWER"
-        color = TRADING_UP if growth_pct >= 0 else TRADING_DOWN
-        draw.text(
-            (PADDING, y),
-            f"{abs(growth_pct):.2f}% {direction} THAN ~1 YEAR AGO",
-            font=growth_font,
-            fill=color,
-        )
-        y += 56
+        direction = "Higher" if growth_pct >= 0 else "Lower"
+        growth = {
+            "direction_class": "up" if growth_pct >= 0 else "down",
+            "text": f"{abs(growth_pct):.2f}% {direction} than ~1 year ago",
+        }
 
-    y += 20
-    draw.rounded_rectangle([PADDING, y, WIDTH - PADDING, y + rate_box_height], radius=RADIUS_CARD, fill=CANVAS_SOFT)
-    draw.text((PADDING + 24, y + 24), "DIVIDEND RATE", font=rate_label_font, fill=MUTE)
-    line_y = y + 24 + 24 + 8
-    for line in rate_lines:
-        draw.text((PADDING + 24, line_y), line, font=rate_font, fill=INK)
-        line_y += rate_line_height
-    y += rate_box_height + 40
+    ticker_subtitle = symbol
+    if security_type and security_type != "COMMON":
+        ticker_subtitle = f"{symbol} · {security_type}"
 
-    pill_width = WIDTH - 2 * PADDING
-    _draw_date_pill(draw, PADDING, y, pill_width, ex_date_text, "Ex-Dividend Date", pill_date_font, pill_label_font)
-    y += PILL_HEIGHT + PILL_GAP
-    _draw_date_pill(draw, PADDING, y, pill_width, payment_date_text, "Payment Date", pill_date_font, pill_label_font)
-    y += PILL_HEIGHT + PILL_GROUP_GAP
+    context = {
+        "eyebrow": f"{dividend_type.upper()} DIVIDEND DECLARATION",
+        "symbol": symbol,
+        "ticker_subtitle": ticker_subtitle,
+        "company_name": _company_name(symbol),
+        "logo_src": _logo_src(symbol),
+        "growth": growth,
+        "rate_text": rate_text,
+        "rate_is_long": len(rate_text) > RATE_HERO_LENGTH_LIMIT,
+        "prior_rate_text": prior_rate_text,
+        "ex_date_text": ex_date_text,
+        "payment_date_text": payment_date_text,
+        "footer_text": " ".join(footer_lines),
+        "watermark": WATERMARK_TEXT,
+    }
 
-    footer_y = HEIGHT - FOOTER_BOTTOM_MARGIN - footer_height
-    draw.line([(PADDING, footer_y), (WIDTH - PADDING, footer_y)], fill=SECTION_RULE_COLOR, width=2)
-    fy = footer_y + 16
-    for line in footer_lines:
-        draw.text((PADDING, fy), line, font=footer_font, fill=FOOTER_COLOR)
-        fy += FOOTER_LINE_HEIGHT
-
-    _draw_watermark_inline(draw, fy - FOOTER_LINE_HEIGHT)
-    image.save(output_path, "PNG")
-    return output_path
+    return render_card("dividend_declaration_card.html", context, output_path)

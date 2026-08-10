@@ -1,0 +1,174 @@
+/*
+  Shared tokens + header/footer chrome for every rendering/templates/*.html
+  card. Mirrors rendering/theme.py's palette/constants. Rendered to PNG by
+  rendering/html_render.py (Playwright/Chromium) -- these templates are
+  the source of truth for card layout for every renderer except
+  dividend_stamp.py, which stays Pillow-based (rendering/primitives.py).
+*/
+:root {
+  --canvas: #fafafa;
+  --canvas-soft: #f2f2f2;
+  --hairline: #ebebeb;
+  --ink: #171717;
+  --ink-soft: #171717;
+  --mute: #8f8f8f;
+  --faint: #a1a1a1;
+  --body: #4d4d4d;
+  --trading-up: #0ecb81;
+  --trading-down: #ee0000;
+  --accent: #0070f3;
+  --radius-card: 12px;
+  --padding: 40px;
+  --pill-gap: 16px; /* PILL_GAP in rendering/dividend_declaration_card.py */
+  /* Geist Sans / Geist Mono are Vercel's actual brand fonts (DESIGN.md
+     names them directly, with Inter/DejaVu Sans Mono as substitutes only
+     for contexts -- like the Pillow renderer -- that can't load a
+     webfont). Loaded via the Google Fonts <link> each template's <head>
+     includes; Inter/JetBrains Mono stay as the fallback if that link
+     fails, same fonts this stack used before. */
+  --sans: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Geist Mono", "JetBrains Mono", "SFMono-Regular", Consolas, "DejaVu Sans Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 40px;
+  background: #e4e4e4;
+  display: flex;
+  justify-content: center;
+  font-family: var(--sans);
+}
+
+/* Every output PNG is a fixed 1080x1080 canvas (WIDTH/HEIGHT in theme.py) */
+.card {
+  width: 1080px;
+  height: 1080px;
+  flex-shrink: 0;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  padding: var(--padding);
+  position: relative;
+  background: var(--canvas);
+}
+
+/* ---- Shared title/subtitle header, used by every card except the
+   declaration card (which has its own eyebrow+ticker header) ----
+   Mirrors _draw_title_header: title, subtitle, then a rule marking the
+   TITLE_BLOCK_HEIGHT boundary before body content starts. */
+.card__title-header {
+  flex-shrink: 0;
+  padding-bottom: 18px;
+  border-bottom: 2px solid var(--hairline);
+  margin-bottom: 18px; /* BODY_FOOTER_GAP, so header and footer rules read as the same kind of break */
+}
+
+.card__title {
+  font-weight: 700;
+  font-size: 34px;
+  color: var(--ink);
+  margin: 0 0 10px;
+  letter-spacing: -0.01em;
+}
+
+.card__subtitle {
+  font-size: 20px;
+  color: var(--mute);
+  margin: 0;
+}
+
+/* ---- Shared footer: rule, disclaimer lines, watermark on the last line ---- */
+.card__footer {
+  flex-shrink: 0;
+  padding-top: 16px;
+  border-top: 2px solid var(--hairline);
+  position: relative;
+}
+
+.footer-text {
+  font-size: 15px;
+  line-height: 28px; /* FOOTER_LINE_HEIGHT */
+  color: var(--body);
+  margin: 0;
+  /* Reserves room for the watermark, which shares the last line's row
+     (see .watermark below) -- matches _watermark_reserve_width in
+     rendering/primitives.py, which the real renderer subtracts from the
+     wrap width before laying out footer text so the two never collide. */
+  padding-right: 90px;
+}
+
+.watermark {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font-size: 14px;
+  color: var(--mute);
+  /* Shares the row with the footer's last text line -- see
+     _draw_watermark_inline -- rather than sitting on its own row. */
+}
+
+.card__body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---- Shared "agenda row" shape: used by month_calendar_card.html's
+   day+events rows and dividend_declaration_card.html's date-badge rows.
+   Base is the divider-row + fixed-width dow/dom stack badge that
+   month_calendar_card needs; dividend_declaration_card pulls in the same
+   two classes but adds the --stretch/--flex modifiers below because its
+   row holds two equal-height single-line badges instead of one fixed
+   badge beside a variable-height events list. ---- */
+.agenda-day {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--hairline);
+}
+.agenda-day:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.agenda-day--stretch {
+  align-items: stretch;
+}
+
+.agenda-date {
+  flex-shrink: 0;
+  width: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--canvas-soft);
+  border-radius: var(--radius-card);
+  padding: 14px 0;
+}
+.agenda-date .dow {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--mute);
+  text-transform: uppercase;
+}
+.agenda-date .dom {
+  font-weight: 700;
+  font-size: 34px;
+  color: var(--ink);
+  line-height: 1.2;
+}
+/* Flexible single-line badge (dividend_declaration_card's date-row
+   labels) instead of the fixed-width dow/dom stack above. */
+.agenda-date--flex {
+  flex: 1;
+  width: auto;
+  flex-direction: row;
+  padding: 20px 0;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--ink);
+}
