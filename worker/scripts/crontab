@@ -1,11 +1,13 @@
 # ai_financial_sns_page cron jobs
 #
-# NOT INSTALLED. This file is a draft for review/testing.
-# To enable once you're ready: crontab scripts/crontab
+# NOT INSTALLED. This file is a draft for review/testing. It's the
+# reference for host-cron scheduling; a containerized scheduler service
+# is a possible future stage, not built yet -- see handoff.md.
+# To enable once you're ready: crontab worker/scripts/crontab
 # To check what's currently installed: crontab -l
 # System timezone is Asia/Manila, matching PSE trading hours below.
 
-PROJECT_DIR=/home/cjoyales/personal/ai_financial_sns_page
+PROJECT_DIR=/home/cjoyales/personal/ai_financial_sns_page/worker
 PYTHON=/home/cjoyales/personal/ai_financial_sns_page/.venv/bin/python
 
 # Financial report disclosures: scrape, analyze, and post to Facebook.
