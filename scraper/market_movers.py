@@ -12,10 +12,12 @@ every listed company.
 """
 
 import json
+import logging
 import os
 import time
 from datetime import date
 
+from logging_config import setup_logging
 from scraper.pse_edge import new_session, get_company_directory, get_stock_data, get_movers_snapshot
 
 DATA_DIR = "data"
@@ -23,6 +25,8 @@ COMPANY_DIRECTORY_CACHE = os.path.join(DATA_DIR, "pse_companies.json")
 OUTPUT_DIR = os.path.join("output", "market_movers")
 
 REQUEST_DELAY_SECONDS = 0.5
+
+logger = logging.getLogger(__name__)
 
 
 def refresh_company_directory(cache_path=COMPANY_DIRECTORY_CACHE):
@@ -37,13 +41,13 @@ def refresh_company_directory(cache_path=COMPANY_DIRECTORY_CACHE):
         added = new_symbols - old_symbols
         removed = old_symbols - new_symbols
         if added:
-            print(f"New listings detected: {sorted(added)}")
+            logger.info("New listings detected: %s", sorted(added))
         if removed:
-            print(f"Delistings/removals detected: {sorted(removed)}")
+            logger.info("Delistings/removals detected: %s", sorted(removed))
         if not added and not removed:
-            print("Company directory unchanged since last check.")
+            logger.info("Company directory unchanged since last check.")
     else:
-        print(f"No previous company directory cache -- saving initial snapshot ({len(new_companies)} companies).")
+        logger.info("No previous company directory cache -- saving initial snapshot (%d companies).", len(new_companies))
 
     os.makedirs(os.path.dirname(cache_path), exist_ok=True)
     with open(cache_path, "w") as f:
@@ -92,7 +96,7 @@ def compute_market_movers(companies, top_n=5, delay_seconds=REQUEST_DELAY_SECOND
             time.sleep(delay_seconds)
 
     if skipped:
-        print(f"Skipped {len(skipped)} symbols with no trading data today: {skipped}")
+        logger.info("Skipped %d symbols with no trading data today: %s", len(skipped), skipped)
 
     def _build_list(key):
         entries = []
@@ -138,10 +142,12 @@ def get_or_compute_movers(companies, top_n=10, cache_date=None):
 
 
 def main():
-    print("Refreshing company directory...")
+    setup_logging()
+
+    logger.info("Refreshing company directory...")
     companies = refresh_company_directory()
 
-    print("Computing market movers from PSE's own top-10 snapshot...")
+    logger.info("Computing market movers from PSE's own top-10 snapshot...")
     movers = compute_market_movers(companies, top_n=10)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -149,16 +155,16 @@ def main():
     with open(output_path, "w") as f:
         json.dump(movers, f, indent=2)
 
-    print(f"\nSaved to {output_path}\n")
-    print("Top gainers:")
+    logger.info("Saved to %s", output_path)
+    logger.info("Top gainers:")
     for r in movers["gainers"]:
-        print(f"  {r['symbol']}: {r['percent_change']:+.2f}% (₱{r['price']})")
-    print("Top losers:")
+        logger.info("  %s: %+.2f%% (₱%s)", r["symbol"], r["percent_change"], r["price"])
+    logger.info("Top losers:")
     for r in movers["losers"]:
-        print(f"  {r['symbol']}: {r['percent_change']:+.2f}% (₱{r['price']})")
-    print("Most active:")
+        logger.info("  %s: %+.2f%% (₱%s)", r["symbol"], r["percent_change"], r["price"])
+    logger.info("Most active:")
     for r in movers["most_active"]:
-        print(f"  {r['symbol']}: {r['volume']:,} shares")
+        logger.info("  %s: %s shares", r["symbol"], f"{r['volume']:,}")
 
 
 if __name__ == "__main__":

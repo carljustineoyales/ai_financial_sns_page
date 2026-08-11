@@ -4,10 +4,13 @@ image+caption; main.py -- text only).
 """
 
 import json
+import logging
 import os
 from datetime import datetime, timezone
 
 from posters.facebook import post_photo, post_to_page
+
+logger = logging.getLogger(__name__)
 
 
 def preview_and_post(image_path, caption, record_path):
@@ -22,12 +25,12 @@ def preview_and_post(image_path, caption, record_path):
     if post_mode == "confirm":
         answer = input("\nPost this to Facebook? [y/N]: ").strip().lower()
         if answer != "y":
-            print("Not posted.")
+            logger.info("Not posted.")
             return
 
-    print("Posting to Facebook...")
+    logger.info("Posting to Facebook...")
     post_id = post_photo(image_path, caption)
-    print(f"Posted. Post id: {post_id}")
+    logger.info("Posted. Post id: %s", post_id)
 
     with open(record_path, "w") as f:
         json.dump(
@@ -52,12 +55,12 @@ def preview_and_post_text(message, record_path):
     if post_mode == "confirm":
         answer = input("\nPost this to Facebook? [y/N]: ").strip().lower()
         if answer != "y":
-            print("Not posted.")
+            logger.info("Not posted.")
             return
 
-    print("Posting to Facebook...")
+    logger.info("Posting to Facebook...")
     post_id = post_to_page(message)
-    print(f"Posted. Post id: {post_id}")
+    logger.info("Posted. Post id: %s", post_id)
 
     with open(record_path, "w") as f:
         json.dump(
