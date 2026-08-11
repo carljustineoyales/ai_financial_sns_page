@@ -6,25 +6,25 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
 
 ## Modules
 
-- **Financial report disclosures** ([main.py](main.py)) — scrapes the latest PSE
+- **Financial report disclosures** ([main.py](worker/main.py)) — scrapes the latest PSE
   Edge financial report disclosure, extracts and analyzes the filing with an
   LLM, generates a caption, and posts it to Facebook as a text-only post via
   `posters.preview_and_post.preview_and_post_text()`.
-- **Market movers** ([scraper/market_movers.py](scraper/market_movers.py)) —
+- **Market movers** ([scraper/market_movers.py](worker/scraper/market_movers.py)) —
   computes end-of-day gainers/losers/most active. No standalone cron entry
   — `market_movers_poster.py` and `financial_report_cards.py` both call
   its `get_or_compute_movers()`, which computes and caches the live
   snapshot itself on a cache miss, so a dedicated "just compute and cache"
   job would be redundant. Still runnable standalone
   (`python -m scraper.market_movers`) for an ad hoc refresh.
-- **Market movers graphics** ([market_movers_graphics.py](market_movers_graphics.py)) —
+- **Market movers graphics** ([market_movers_graphics.py](worker/market_movers_graphics.py)) —
   builds the Top 10 Gainers, Top 10 Losers, and Top 10 Most Active cards and
   their captions, market-wide. No dependency on `posters.facebook` — same
   "renderable/previewable without a Facebook post ever being possible"
   guarantee as `dividend_graphics.py`. Captions are deterministic string
   templates, not LLM-generated — this is just formatted facts, no analysis
   involved.
-- **Market movers poster** ([market_movers_poster.py](market_movers_poster.py)) —
+- **Market movers poster** ([market_movers_poster.py](worker/market_movers_poster.py)) —
   calls into `market_movers_graphics.py` to build each of the 3 cards, then
   previews/confirms and posts each separately. Shares a same-day cached
   movers snapshot with `financial_report_cards.py` via
@@ -34,19 +34,19 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   the exact same top-10 lists without needing a particular run order, and
   the live scrape only happens once per day regardless of which script
   triggers it.
-- **Market calendar** ([scraper/market_calendar.py](scraper/market_calendar.py)) —
+- **Market calendar** ([scraper/market_calendar.py](worker/scraper/market_calendar.py)) —
   refreshes dividends/SROs/meetings/listings for the current month.
-- **Dividend graphics** ([dividend_graphics.py](dividend_graphics.py)) —
+- **Dividend graphics** ([dividend_graphics.py](worker/dividend_graphics.py)) —
   builds dividend graphics scoped to the PSEi + REIT watchlist: `month`
   builds next month's dividend ex-date calendar card, `year` builds a full
   Jan-Dec dividend payout overview plus per-month detail cards. No
   dependency on `posters.facebook` — cards can be rendered and previewed
   without a Facebook post ever being possible.
-- **Dividend posters** ([dividend_posters.py](dividend_posters.py)) — CLI
+- **Dividend posters** ([dividend_posters.py](worker/dividend_posters.py)) — CLI
   (`month`/`year`) that calls into `dividend_graphics.py` to build the card,
   then previews/confirms and posts it to Facebook. The only module with a
   `posters.facebook` dependency for this pipeline.
-- **Dividend declaration graphics** ([dividend_declaration_graphics.py](dividend_declaration_graphics.py)) —
+- **Dividend declaration graphics** ([dividend_declaration_graphics.py](worker/dividend_declaration_graphics.py)) —
   builds a single-declaration card (rate, ex-dividend date, payment date,
   and growth vs. that company's own declaration from ~1 year prior, when
   one is found) and its deterministic caption. No dependency on
@@ -56,7 +56,7 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   ("H1"/"Q2"/"Annual"), so the caption says "around this time last year,"
   never claiming a specific period it can't confirm; omitted entirely when
   no declaration falls within the tolerance window.
-- **Dividend declarations** ([dividend_declarations.py](dividend_declarations.py)) —
+- **Dividend declarations** ([dividend_declarations.py](worker/dividend_declarations.py)) —
   market-wide, for any dividend declaration whose ex-dividend date falls
   within the next 14 days (`EX_DATE_WINDOW_DAYS`): fetches that company's
   own recent dividend history via `scraper.pse_edge.get_company_dividends()`
@@ -72,12 +72,12 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   currently active declaration (live-tested at 543 entries spanning
   months into the future) — without it, first run would post hundreds of
   cards at once.
-- **Financial report graphics** ([financial_report_graphics.py](financial_report_graphics.py)) —
+- **Financial report graphics** ([financial_report_graphics.py](worker/financial_report_graphics.py)) —
   builds a single company's report-card image from its already-extracted/
   computed figures (`METRIC_ORDER` controls row priority so the most
   informative fields survive if the fixed-canvas table has to truncate). No
   dependency on `posters.facebook`, no LLM call — pure rendering.
-- **Financial report cards** ([financial_report_cards.py](financial_report_cards.py)) —
+- **Financial report cards** ([financial_report_cards.py](worker/financial_report_cards.py)) —
   for every company in today's top 10 gainers/losers/most-active (same
   cached snapshot `market_movers_poster.py` uses, via
   `get_or_compute_movers()`), pulls that company's most recent financial report on
@@ -99,22 +99,22 @@ disclosures and market data from PSE Edge, analyzes them with an LLM
   rankings. Deliberately overlaps with `main.py`'s coverage (narrative vs.
   structured figures, different trigger) rather than replacing it.
 
-Shared watchlist/date-range helpers live in [dividend_tracker.py](dividend_tracker.py).
+Shared watchlist/date-range helpers live in [dividend_tracker.py](worker/dividend_tracker.py).
 The preview/confirm/post/record flow shared across every poster lives in
-[posters/preview_and_post.py](posters/preview_and_post.py):
+[posters/preview_and_post.py](worker/posters/preview_and_post.py):
 `preview_and_post()` (image+caption, via `post_photo`) is used by
-[dividend_posters.py](dividend_posters.py),
-[market_movers_poster.py](market_movers_poster.py),
-[financial_report_cards.py](financial_report_cards.py), and
-[dividend_declarations.py](dividend_declarations.py);
+[dividend_posters.py](worker/dividend_posters.py),
+[market_movers_poster.py](worker/market_movers_poster.py),
+[financial_report_cards.py](worker/financial_report_cards.py), and
+[dividend_declarations.py](worker/dividend_declarations.py);
 `preview_and_post_text()` (text only, via `post_to_page`) is used by
-[main.py](main.py).
+[main.py](worker/main.py).
 Graphic cards (dividend calendars, year overview) are rendered to PNG via the
-[rendering/](rendering/) package (Pillow, DejaVu Sans, deliberately simple
+[rendering/](worker/rendering/) package (Pillow, DejaVu Sans, deliberately simple
 utility graphics rather than polished design) — `theme.py` holds the palette
 and layout constants, `primitives.py` holds shared drawing helpers, and each
 card type (table, calendar, dividend stamp, year overview, ticker grid) has
-its own module. [assets_logos.py](assets_logos.py) downloads/caches company
+its own module. [assets_logos.py](worker/assets_logos.py) downloads/caches company
 logos into `assets/logos/` — **manual only**, not called by any pipeline
 script. Rendering reads whatever's already cached and silently renders
 without a logo for anything missing, so a cron run never triggers an
@@ -224,10 +224,13 @@ flowchart TD
 
 ## Setup
 
+The app lives under `worker/`; `.venv` and `.env` stay at the repo root.
+
 ```bash
 cd /home/cjoyales/personal/ai_financial_sns_page
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r worker/requirements.txt
+playwright install --with-deps chromium
 cp .env.example .env
 ```
 
@@ -248,7 +251,11 @@ and access token are required for any script that posts.
 
 ## Running
 
+All commands run from `worker/` (paths like `output/` and `data/` are
+resolved relative to the current directory):
+
 ```bash
+cd worker
 python main.py                          # financial report disclosures
 python -m scraper.market_movers          # market movers (compute + cache only)
 python market_movers_poster.py           # market movers, top 10 gainers/losers/most-active (posts)
@@ -264,7 +271,7 @@ before posting to Facebook. Set `POST_MODE=auto` to post unattended (required
 under cron, since there's no terminal to answer the prompt).
 
 Output (downloaded PDFs, extracted text, analysis, rendered images, "posted"
-markers to avoid duplicate posts) is written under `output/`, split by
+markers to avoid duplicate posts) is written under `worker/output/`, split by
 category.
 
 ## Facebook access token
@@ -272,22 +279,55 @@ category.
 Page access tokens expire. To refresh:
 
 ```bash
-.venv/bin/python scripts/refresh_fb_token.py
+.venv/bin/python worker/scripts/refresh_fb_token.py
 ```
 
 Generate a short-lived User Access Token via Graph API Explorer first, then
 paste it in when prompted; the script exchanges it for a long-lived Page
-token and writes it into `.env`.
+token and writes it into `.env` (repo root).
 
 ## Scheduling
 
-[scripts/crontab](scripts/crontab) is a **draft** schedule (not installed
-automatically). It runs each script at the appropriate time around PSE
-trading hours (9:30am-3:30pm, Asia/Manila) with `POST_MODE=auto` and
-`flock` to prevent overlapping runs. Review it, then install with:
+[worker/scripts/crontab](worker/scripts/crontab) is a **draft** schedule
+(not installed automatically) — the reference for host-cron scheduling; a
+containerized scheduler is a possible future stage, not built yet. It runs
+each script at the appropriate time around PSE trading hours (9:30am-3:30pm,
+Asia/Manila) with `POST_MODE=auto` and `flock` to prevent overlapping runs.
+Review it, then install with:
 
 ```bash
-crontab scripts/crontab
+crontab worker/scripts/crontab
 ```
 
 Check what's currently installed with `crontab -l`.
+
+## Observability
+
+Structured, leveled logs (`worker/logs/*.log`, written via Python's
+`logging` module through `worker/logging_config.py`) can be shipped to
+Grafana via a local Loki + Promtail + Grafana stack:
+
+```bash
+docker compose up -d
+```
+
+Then open [http://localhost:3000](http://localhost:3000) — Grafana comes
+pre-provisioned with Loki as a datasource; use Explore to query logs by
+the `job="ai_financial_sns_page"` label. Promtail tails
+`worker/logs/*.log` directly (bind-mounted, read-only), so it picks up
+logs regardless of whether they're written by host cron or the `worker`
+container.
+
+To run only the observability stack (without building/starting `worker`):
+
+```bash
+docker compose -f observability/docker-compose.yml up -d
+```
+
+The `worker` service itself has no default long-running process (it's a
+set of cron-triggered batch scripts, not a server) — invoke a script
+inside the container with:
+
+```bash
+docker compose run --rm worker python main.py
+```

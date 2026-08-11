@@ -1,0 +1,12 @@
+include:
+  - observability/docker-compose.yml
+
+services:
+  worker:
+    build: ./worker
+    env_file: .env
+    volumes:
+      - ./worker/data:/app/data
+      - ./worker/output:/app/output
+      - ./worker/logs:/app/logs
+      - ./worker/assets:/app/assets

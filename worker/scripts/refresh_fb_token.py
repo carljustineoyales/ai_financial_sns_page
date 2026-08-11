@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from logging_config import setup_logging
 
 GRAPH_API_BASE = "https://graph.facebook.com/v19.0"
-ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
 
 logger = logging.getLogger(__name__)
 
