@@ -14,15 +14,19 @@ images shouldn't happen unattended in a scheduled pipeline).
 
 import argparse
 import json
+import logging
 import os
 import sys
 
+from logging_config import setup_logging
 from rendering.primitives import MAX_LOGO_SOURCE_PIXELS, _open_image_no_bomb_warning
 from scraper import tradingview
 from scraper.market_movers import COMPANY_DIRECTORY_CACHE, refresh_company_directory
 from scraper.pse_edge import download_image
 
 LOGO_DIR = os.path.join("assets", "logos")
+
+logger = logging.getLogger(__name__)
 
 
 def _load_company_directory():
@@ -55,7 +59,7 @@ def get_logo_path(symbol):
         with _open_image_no_bomb_warning(dest_path) as im:
             if im.width * im.height > MAX_LOGO_SOURCE_PIXELS:
                 os.remove(dest_path)
-                print(f"{symbol}: downloaded logo is {im.width}x{im.height}, over the size cap -- discarded.")
+                logger.warning("%s: downloaded logo is %dx%d, over the size cap -- discarded.", symbol, im.width, im.height)
                 return None
 
         return dest_path
@@ -74,10 +78,12 @@ def ensure_logos(symbols):
         if not get_logo_path(symbol):
             missing.append(symbol)
     if missing:
-        print(f"No logo found/downloaded for: {missing}")
+        logger.warning("No logo found/downloaded for: %s", missing)
 
 
 def main():
+    setup_logging()
+
     parser = argparse.ArgumentParser(
         description="Manually prefetch/cache company logos. Not run automatically by any pipeline script."
     )
@@ -94,9 +100,9 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    print(f"Fetching logos for {len(symbols)} symbol(s)...")
+    logger.info("Fetching logos for %d symbol(s)...", len(symbols))
     ensure_logos(symbols)
-    print("Done.")
+    logger.info("Done.")
 
 
 if __name__ == "__main__":

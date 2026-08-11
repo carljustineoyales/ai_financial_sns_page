@@ -13,6 +13,7 @@ posts reference the exact same top-10 lists without needing a particular
 run order.
 """
 
+import logging
 import os
 import sys
 from datetime import date
@@ -20,20 +21,23 @@ from datetime import date
 from dotenv import load_dotenv
 
 import market_movers_graphics as graphics
+from logging_config import setup_logging
 from posters.preview_and_post import preview_and_post
 from scraper.market_movers import get_or_compute_movers, refresh_company_directory
 
 OUTPUT_DIR = os.path.join("output", "market_movers_poster")
 TOP_N = 10
 
+logger = logging.getLogger(__name__)
+
 
 def _fail(stage, exc):
-    print(f"[market_movers_poster] {stage} failed: {exc}", file=sys.stderr)
+    logger.error("%s failed: %s", stage, exc)
 
 
 def _process_category(category, entries):
     if not entries:
-        print(f"{category}: no data today, skipping.")
+        logger.info("%s: no data today, skipping.", category)
         return
 
     item_dir = os.path.join(OUTPUT_DIR, date.today().isoformat(), category)
@@ -41,24 +45,25 @@ def _process_category(category, entries):
 
     posted_marker = os.path.join(item_dir, "posted.json")
     if os.path.exists(posted_marker):
-        print(f"{category}: already posted, skipping.")
+        logger.info("%s: already posted, skipping.", category)
         return
 
     image_path = os.path.join(item_dir, "card.png")
     graphics.build_movers_card(category, entries, image_path)
-    print(f"{category}: saved card to {image_path}")
+    logger.info("%s: saved card to %s", category, image_path)
 
     caption = graphics.build_movers_caption(category, entries)
     preview_and_post(image_path, caption, posted_marker)
 
 
 def main():
+    setup_logging()
     load_dotenv()
 
-    print("Refreshing company directory...")
+    logger.info("Refreshing company directory...")
     companies = refresh_company_directory()
 
-    print("Fetching today's market movers (cached snapshot if one already exists)...")
+    logger.info("Fetching today's market movers (cached snapshot if one already exists)...")
     try:
         movers = get_or_compute_movers(companies, top_n=TOP_N)
     except Exception as e:

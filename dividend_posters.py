@@ -6,6 +6,7 @@ handles data-fetch orchestration, preview/confirm, and posting.
 """
 
 import argparse
+import logging
 import os
 from datetime import date
 
@@ -13,8 +14,11 @@ from dotenv import load_dotenv
 
 import dividend_graphics as graphics
 from dividend_tracker import _symbol_lookup, get_watchlist_symbols
+from logging_config import setup_logging
 from posters.preview_and_post import preview_and_post
 from scraper.pse_edge import get_dividends_and_rights
+
+logger = logging.getLogger(__name__)
 
 
 def main_month():
@@ -22,21 +26,21 @@ def main_month():
     watchlist = get_watchlist_symbols()
     symbol_lookup = _symbol_lookup()
 
-    print(f"Fetching dividend declarations from PSE Edge for {year}-{month:02d}...")
+    logger.info("Fetching dividend declarations from PSE Edge for %s-%02d...", year, month)
     entries = get_dividends_and_rights()
 
     events = graphics.get_month_dividend_events(entries, watchlist, symbol_lookup, year, month)
-    print(f"{len(events)} watchlist dividend events for {year}-{month:02d}.")
+    logger.info("%d watchlist dividend events for %s-%02d.", len(events), year, month)
 
     if not events:
-        print("Nothing scheduled in this window -- skipping post.")
+        logger.info("Nothing scheduled in this window -- skipping post.")
         return
 
     os.makedirs(graphics.MONTH_OUTPUT_DIR, exist_ok=True)
     image_name = f"{year}-{month:02d}"
     image_path = os.path.join(graphics.MONTH_OUTPUT_DIR, f"{image_name}.png")
     graphics.build_month_card(events, year, month, image_path)
-    print(f"Saved card to {image_path}")
+    logger.info("Saved card to %s", image_path)
 
     caption = graphics.build_month_caption()
     record_path = os.path.join(graphics.MONTH_OUTPUT_DIR, f"{image_name}.json")
@@ -48,22 +52,22 @@ def main_year():
     watchlist = get_watchlist_symbols()
     symbol_lookup = _symbol_lookup()
 
-    print("Fetching dividend declarations from PSE Edge...")
+    logger.info("Fetching dividend declarations from PSE Edge...")
     entries = get_dividends_and_rights()
 
     months_data = graphics.get_current_year_by_month(entries, watchlist, symbol_lookup, year=year)
     for month in range(1, 13):
-        print(f"  {month:02d}: {len(months_data[month])} tickers")
+        logger.info("  %02d: %d tickers", month, len(months_data[month]))
 
     output_dir = graphics.year_output_dir(year)
     os.makedirs(output_dir, exist_ok=True)
     image_path = os.path.join(output_dir, "overview.png")
     graphics.build_year_card(months_data, year, image_path)
-    print(f"Saved card to {image_path}")
+    logger.info("Saved card to %s", image_path)
 
     detail_paths = graphics.build_month_detail_cards(months_data, year, output_dir)
     for path in detail_paths:
-        print(f"Saved month detail card to {path}")
+        logger.info("Saved month detail card to %s", path)
 
     caption = graphics.build_year_caption(year)
     record_path = os.path.join(output_dir, "overview.json")
@@ -71,6 +75,7 @@ def main_year():
 
 
 def main():
+    setup_logging()
     load_dotenv()
 
     parser = argparse.ArgumentParser(description="Post PSE dividend graphics to Facebook.")

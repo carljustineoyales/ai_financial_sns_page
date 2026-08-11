@@ -17,6 +17,7 @@ declaration enters the window and gets posted, it's marked and won't
 repost on later runs even while its ex-date is still within the window.
 """
 
+import logging
 import os
 import sys
 from datetime import date, datetime
@@ -24,6 +25,7 @@ from datetime import date, datetime
 from dotenv import load_dotenv
 
 import dividend_declaration_graphics as graphics
+from logging_config import setup_logging
 from posters.preview_and_post import preview_and_post
 from scraper.market_movers import refresh_company_directory
 from scraper.pse_edge import get_company_dividends, get_dividends_and_rights
@@ -32,9 +34,11 @@ OUTPUT_DIR = os.path.join("output", "dividend_declarations")
 PRIOR_YEAR_TOLERANCE_DAYS = 60
 EX_DATE_WINDOW_DAYS = 14
 
+logger = logging.getLogger(__name__)
+
 
 def _fail(stage, exc):
-    print(f"[dividend_declarations] {stage} failed: {exc}", file=sys.stderr)
+    logger.error("%s failed: %s", stage, exc)
 
 
 def get_new_declarations(window_days=EX_DATE_WINDOW_DAYS):
@@ -71,7 +75,7 @@ def get_new_declarations(window_days=EX_DATE_WINDOW_DAYS):
 
         symbol = symbol_by_cmpy_id.get(declaration["cmpy_id"])
         if not symbol:
-            print(f"{declaration['company']}: no matching symbol in company directory, skipping.")
+            logger.info("%s: no matching symbol in company directory, skipping.", declaration["company"])
             continue
 
         try:
@@ -119,7 +123,7 @@ def _find_prior_year_entry(entries, target_edge_no, target_date, target_security
 def _process_declaration(declaration, symbol):
     edge_no = declaration["edge_no"]
     if not edge_no:
-        print(f"{symbol}: declaration has no edge_no, skipping.")
+        logger.info("%s: declaration has no edge_no, skipping.", symbol)
         return
 
     item_dir = os.path.join(OUTPUT_DIR, date.today().isoformat(), edge_no)
@@ -127,10 +131,10 @@ def _process_declaration(declaration, symbol):
 
     posted_marker = os.path.join(item_dir, "posted.json")
     if os.path.exists(posted_marker):
-        print(f"{symbol}: already posted, skipping.")
+        logger.info("%s: already posted, skipping.", symbol)
         return
 
-    print(f"{symbol}: {declaration['dividend_type']} dividend, ex-date {declaration['ex_dividend_date']}")
+    logger.info("%s: %s dividend, ex-date %s", symbol, declaration["dividend_type"], declaration["ex_dividend_date"])
 
     try:
         history = get_company_dividends(declaration["cmpy_id"])
@@ -140,7 +144,7 @@ def _process_declaration(declaration, symbol):
 
     entry = next((e for e in history if e["edge_no"] == edge_no), None)
     if not entry:
-        print(f"{symbol}: declaration not found in its own history list (edge_no mismatch), skipping.")
+        logger.info("%s: declaration not found in its own history list (edge_no mismatch), skipping.", symbol)
         return
 
     try:
@@ -151,16 +155,17 @@ def _process_declaration(declaration, symbol):
 
     image_path = os.path.join(item_dir, "card.png")
     graphics.build_declaration_card(symbol, entry, prior_entry, image_path)
-    print(f"{symbol}: saved card to {image_path}")
+    logger.info("%s: saved card to %s", symbol, image_path)
 
     caption = graphics.build_declaration_caption(symbol, entry, prior_entry)
     preview_and_post(image_path, caption, posted_marker)
 
 
 def main():
+    setup_logging()
     load_dotenv()
 
-    print("Fetching current dividend declarations from PSE Edge...")
+    logger.info("Fetching current dividend declarations from PSE Edge...")
     try:
         matches = get_new_declarations()
     except Exception as e:
@@ -168,7 +173,7 @@ def main():
         sys.exit(1)
 
     if not matches:
-        print("No dividend declarations found.")
+        logger.info("No dividend declarations found.")
         return
 
     for declaration, symbol in matches:

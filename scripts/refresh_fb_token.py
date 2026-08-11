@@ -5,14 +5,22 @@ Usage: .venv/bin/python scripts/refresh_fb_token.py
 Then paste the short-lived user token when prompted.
 """
 
+import logging
 import os
 import re
+import sys
 
 import requests
 from dotenv import load_dotenv
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from logging_config import setup_logging
+
 GRAPH_API_BASE = "https://graph.facebook.com/v19.0"
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+
+logger = logging.getLogger(__name__)
 
 
 def exchange_for_long_lived_user_token(short_lived_token, app_id, app_secret):
@@ -67,6 +75,7 @@ def update_env_var(key, value):
 
 
 def main():
+    setup_logging()
     load_dotenv()
 
     app_id = os.environ["FACEBOOK_APP_ID"]
@@ -77,16 +86,16 @@ def main():
         "Paste the short-lived User Access Token from Graph API Explorer: "
     ).strip()
 
-    print("Exchanging for a long-lived user token...")
+    logger.info("Exchanging for a long-lived user token...")
     long_lived_user_token = exchange_for_long_lived_user_token(
         short_lived_token, app_id, app_secret
     )
 
-    print("Fetching long-lived Page token...")
+    logger.info("Fetching long-lived Page token...")
     page_token = get_page_token(long_lived_user_token, page_id)
 
     update_env_var("FACEBOOK_ACCESS_TOKEN", page_token)
-    print("Done. FACEBOOK_ACCESS_TOKEN updated in .env with a long-lived Page token.")
+    logger.info("Done. FACEBOOK_ACCESS_TOKEN updated in .env with a long-lived Page token.")
 
 
 if __name__ == "__main__":

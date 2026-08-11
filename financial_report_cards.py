@@ -22,6 +22,7 @@ formats -- that's intentional, not a duplicate-post bug.
 """
 
 import json
+import logging
 import os
 import sys
 from datetime import date
@@ -33,6 +34,7 @@ import llm
 from analysis.analyzer import extract_report_card, extract_text, generate_report_card_caption
 from analysis.ratios import compute_derived_metrics, compute_valuation_metrics
 from dividend_tracker import PSE_REIT_SYMBOLS
+from logging_config import setup_logging
 from posters.preview_and_post import preview_and_post
 from scraper.market_movers import get_or_compute_movers, refresh_company_directory
 from scraper.pse_edge import (
@@ -47,9 +49,11 @@ from scraper.pse_edge import (
 OUTPUT_DIR = os.path.join("output", "financial_report_cards")
 TOP_N = 10
 
+logger = logging.getLogger(__name__)
+
 
 def _fail(stage, exc):
-    print(f"[financial_report_cards] {stage} failed: {exc}", file=sys.stderr)
+    logger.error("%s failed: %s", stage, exc)
 
 
 def get_top_mover_disclosures():
@@ -74,12 +78,12 @@ def get_top_mover_disclosures():
     for symbol in symbols:
         cmpy_id = cmpy_id_by_symbol.get(symbol)
         if not cmpy_id:
-            print(f"{symbol}: no cmpy_id in company directory, skipping.")
+            logger.info("%s: no cmpy_id in company directory, skipping.", symbol)
             continue
 
         reports = get_company_financial_reports(cmpy_id, session=session)
         if not reports:
-            print(f"{symbol}: no financial report on file, skipping.")
+            logger.info("%s: no financial report on file, skipping.", symbol)
             continue
 
         info = {
@@ -99,10 +103,10 @@ def _process_disclosure(disclosure, info, session):
 
     posted_marker = os.path.join(item_dir, "posted.json")
     if os.path.exists(posted_marker):
-        print(f"{symbol}: already posted, skipping.")
+        logger.info("%s: already posted, skipping.", symbol)
         return
 
-    print(f"{symbol}: {disclosure['template_name']} ({disclosure['announce_datetime']})")
+    logger.info("%s: %s (%s)", symbol, disclosure["template_name"], disclosure["announce_datetime"])
 
     pdf_path = os.path.join(item_dir, "document.pdf")
     try:
@@ -128,7 +132,7 @@ def _process_disclosure(disclosure, info, session):
             _fail(f"{symbol}: fetching source text", e)
             return
         if not text:
-            print(f"{symbol}: no text available from Main Document or PDF, skipping.")
+            logger.info("%s: no text available from Main Document or PDF, skipping.", symbol)
             return
         with open(text_path, "w") as f:
             f.write(text)
@@ -138,7 +142,7 @@ def _process_disclosure(disclosure, info, session):
         with open(data_path) as f:
             data = json.load(f)
     else:
-        print(f"{symbol}: extracting report card figures...")
+        logger.info("%s: extracting report card figures...", symbol)
         try:
             data = extract_report_card(text, disclosure["company"], disclosure["template_name"])
         except Exception as e:
@@ -163,12 +167,12 @@ def _process_disclosure(disclosure, info, session):
 
     rows = graphics.report_rows(data, computed, valuation)
     if not rows:
-        print(f"{symbol}: no report-card figures found in this filing, skipping post.")
+        logger.info("%s: no report-card figures found in this filing, skipping post.", symbol)
         return
 
     image_path = os.path.join(item_dir, "card.png")
     graphics.build_report_card(symbol, disclosure["template_name"], data, computed, valuation, image_path)
-    print(f"{symbol}: saved card to {image_path}")
+    logger.info("%s: saved card to %s", symbol, image_path)
 
     figures_text = graphics.figures_text(data, computed, valuation)
     try:
@@ -183,13 +187,14 @@ def _process_disclosure(disclosure, info, session):
 
 
 def main():
+    setup_logging()
     load_dotenv()
 
     if not any(p.is_available() for p in llm.get_provider_order()):
-        print("No LLM provider is configured. Set ANTHROPIC_API_KEY and/or GEMINI_API_KEY in .env.")
+        logger.error("No LLM provider is configured. Set ANTHROPIC_API_KEY and/or GEMINI_API_KEY in .env.")
         sys.exit(1)
 
-    print("Fetching today's top movers and their most recent financial reports...")
+    logger.info("Fetching today's top movers and their most recent financial reports...")
     try:
         matches, session = get_top_mover_disclosures()
     except Exception as e:
@@ -197,7 +202,7 @@ def main():
         sys.exit(1)
 
     if not matches:
-        print("No top movers with a financial report on file today.")
+        logger.info("No top movers with a financial report on file today.")
         return
 
     for disclosure, info in matches:

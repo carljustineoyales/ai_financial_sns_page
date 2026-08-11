@@ -3,6 +3,7 @@ a caption + analysis to the configured Facebook Page.
 """
 
 import json
+import logging
 import os
 import re
 import sys
@@ -12,6 +13,7 @@ from dotenv import load_dotenv
 
 import llm
 from analysis.analyzer import analyze, extract_text, generate_caption
+from logging_config import setup_logging
 from posters.preview_and_post import preview_and_post_text
 from scraper.pse_edge import (
     download_pdf,
@@ -23,9 +25,11 @@ from scraper.pse_edge import (
 OUTPUT_DIR = "output"
 CATEGORY = "financial_reports"
 
+logger = logging.getLogger(__name__)
+
 
 def _fail(stage, exc):
-    print(f"[main] {stage} failed: {exc}", file=sys.stderr)
+    logger.error("%s failed: %s", stage, exc)
     sys.exit(1)
 
 
@@ -40,24 +44,25 @@ def _split_trailing_hashtags(text):
 
 
 def main():
+    setup_logging()
     load_dotenv()
 
     if not any(p.is_available() for p in llm.get_provider_order()):
-        print("No LLM provider is configured. Set ANTHROPIC_API_KEY and/or GEMINI_API_KEY in .env.")
+        logger.error("No LLM provider is configured. Set ANTHROPIC_API_KEY and/or GEMINI_API_KEY in .env.")
         sys.exit(1)
 
-    print("Fetching latest financial report disclosures from PSE Edge...")
+    logger.info("Fetching latest financial report disclosures from PSE Edge...")
     try:
         disclosures, session = get_latest_financial_reports(limit=10)
     except Exception as e:
         _fail("fetching disclosures", e)
 
     if not disclosures:
-        print("No disclosures found.")
+        logger.info("No disclosures found.")
         sys.exit(1)
 
     target = disclosures[0]
-    print(f"Found: {target['company']} - {target['template_name']} ({target['announce_datetime']})")
+    logger.info("Found: %s - %s (%s)", target["company"], target["template_name"], target["announce_datetime"])
 
     item_dir = os.path.join(
         OUTPUT_DIR, CATEGORY, date.today().isoformat(), target["report_number"]
@@ -69,51 +74,51 @@ def main():
         attachment = get_pdf_attachment(target["edge_no"], session=session)
         if attachment:
             file_id, filename = attachment
-            print(f"Attachment: {filename}")
+            logger.info("Attachment: %s", filename)
             if os.path.exists(pdf_path):
-                print(f"PDF already exists at {pdf_path}, skipping download.")
+                logger.info("PDF already exists at %s, skipping download.", pdf_path)
             else:
                 download_pdf(file_id, pdf_path, target["edge_no"], session=session)
-                print(f"Downloaded PDF to {pdf_path}")
+                logger.info("Downloaded PDF to %s", pdf_path)
         else:
-            print("No attachment for this disclosure.")
+            logger.info("No attachment for this disclosure.")
     except Exception as e:
         _fail("downloading PDF attachment", e)
 
     text_path = os.path.join(item_dir, "source_text.txt")
     if os.path.exists(text_path):
-        print(f"Source text already exists at {text_path}, reusing it.")
+        logger.info("Source text already exists at %s, reusing it.", text_path)
         with open(text_path) as f:
             text = f.read()
     else:
-        print("Fetching Main Document text...")
+        logger.info("Fetching Main Document text...")
         try:
             text, html = get_main_document_text(target["edge_no"], session=session)
             if not text and os.path.exists(pdf_path):
-                print("Main Document had no text, falling back to PDF extraction...")
+                logger.info("Main Document had no text, falling back to PDF extraction...")
                 text = extract_text(pdf_path)
                 html = ""
         except Exception as e:
             _fail("fetching source text", e)
         if not text:
-            print("Warning: no text available from Main Document or PDF.")
+            logger.warning("No text available from Main Document or PDF.")
             sys.exit(1)
         with open(text_path, "w") as f:
             f.write(text)
-        print(f"Saved source text ({len(text)} characters) to {text_path}")
+        logger.info("Saved source text (%d characters) to %s", len(text), text_path)
         if html:
             html_path = os.path.join(item_dir, "main_document.html")
             with open(html_path, "w") as f:
                 f.write(html)
-            print(f"Saved main document HTML to {html_path}")
+            logger.info("Saved main document HTML to %s", html_path)
 
     output_path = os.path.join(item_dir, "analysis.md")
     if os.path.exists(output_path):
-        print(f"Analysis already exists at {output_path}, skipping analysis.")
+        logger.info("Analysis already exists at %s, skipping analysis.", output_path)
         with open(output_path) as f:
             summary = f.read().split("---\n\n", 1)[1]
     else:
-        print("Analyzing...")
+        logger.info("Analyzing...")
         try:
             summary = analyze(text, target["company"], target["template_name"])
         except Exception as e:
@@ -125,21 +130,18 @@ def main():
             f.write(f"**Report Number:** {target['report_number']}\n\n")
             f.write("---\n\n")
             f.write(summary)
-        print(f"Saved analysis to {output_path}")
+        logger.info("Saved analysis to %s", output_path)
 
-    print()
-    print("=" * 60)
-    print(summary)
-    print("=" * 60)
+    logger.info("\n%s\n%s\n%s", "=" * 60, summary, "=" * 60)
 
     posted_marker = os.path.join(item_dir, "posted.json")
     if os.path.exists(posted_marker):
         with open(posted_marker) as f:
             info = json.load(f)
-        print(f"\nAlready posted (post id: {info['post_id']}), skipping.")
+        logger.info("Already posted (post id: %s), skipping.", info["post_id"])
         return
 
-    print("\nGenerating Facebook caption...")
+    logger.info("Generating Facebook caption...")
     try:
         caption = generate_caption(summary, target["company"], target["template_name"])
     except Exception as e:
