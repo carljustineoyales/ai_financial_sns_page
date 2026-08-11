@@ -1,11 +1,9 @@
 """Layout constants and palette for the rendering package.
 
 Deliberately simple -- these are Facebook utility graphics (dividend
-schedules, etc.), not polished design artifacts. Uses DejaVu Sans, which
-ships system-wide on this machine, so no font file needs to be bundled --
-DESIGN.md's own font-substitute note names Inter as the closest open
-substitute for Geist Sans, and DejaVu Sans (a similar humanist grotesque)
-stands in for that without requiring a bundled font file.
+schedules, etc.), not polished design artifacts. Mirrored by
+rendering/templates/_shared.css for the HTML/Playwright renderers (see
+html_render.py), which load Geist/Geist Mono directly as webfonts.
 """
 
 import os
@@ -76,8 +74,6 @@ WATERMARK_TEXT_COLOR = MUTE
 # 12px value the old Zapier system also used, so this didn't need to
 # change even though the underlying brand did.
 RADIUS_CARD = 12
-
-FONT_DIR = "/usr/share/fonts/truetype/dejavu"
 
 ASSETS_LOGO_DIR = os.path.join("assets", "logos")
 

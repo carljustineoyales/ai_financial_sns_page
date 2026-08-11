@@ -1,7 +1,7 @@
 """Local disk cache of company logo images, scraped from TradingView and
 keyed by ticker symbol (PSE Edge's own /clogo/ images were the original
 source; replaced with TradingView's, which cover more symbols).
-rendering/primitives.py's _load_logo() only ever reads from LOGO_DIR and
+rendering/primitives.py's _logo_src() only ever reads from LOGO_DIR and
 never fetches -- it silently renders without a logo for any symbol not
 yet cached. All network fetching happens in this module, and only when
 run manually (`python assets_logos.py ...`); no poster or graphics module

@@ -1,11 +1,10 @@
 """Renders simple table-style graphic cards to PNG.
 
 Deliberately simple -- these are Facebook utility graphics (dividend
-schedules, etc.), not polished design artifacts. Every renderer except
-render_dividend_stamp_card is HTML/CSS (rendering/templates/*.html,
-rendered via headless Chromium -- see html_render.py); dividend_stamp
-stays Pillow-based (rendering/primitives.py), the one card type with no
-HTML template.
+schedules, etc.), not polished design artifacts. Every renderer is
+HTML/CSS (rendering/templates/*.html, rendered via headless Chromium --
+see html_render.py). Pillow is only still used for logo decoding
+(rendering/primitives.py's _open_image_no_bomb_warning), not drawing.
 """
 
 from .theme import STATUS_COLORS, WIDTH, HEIGHT, PADDING, WATERMARK_TEXT

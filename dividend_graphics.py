@@ -94,12 +94,7 @@ def build_month_card(events, year, month, output_path):
     subtitle = "PSEi and REIT watchlist"
 
     groups = _group_events_with_status(events)
-    footer_lines = [
-        (renderer.STATUS_COLORS["PAID"], "Paid"),
-        (renderer.STATUS_COLORS["EX-DATE PASSED"], "Ex-date passed"),
-        (renderer.STATUS_COLORS["UPCOMING"], "Upcoming"),
-        (None, DISCLAIMER),
-    ]
+    footer_lines = [DISCLAIMER]
 
     return renderer.render_dividend_stamp_card(title, subtitle, groups, footer_lines, output_path)
 

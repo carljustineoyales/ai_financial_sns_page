@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{ title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  /* Rendered by rendering/dividend_stamp.py's render_dividend_stamp_card
+     via html_render.py: a grid of per-date cards, each a status-colored
+     logo tile per ticker on that date. cols and tile_size_px are computed
+     in Python from the group/entry counts (mirrors the sizing approach in
+     rendering/ticker_grid.py) since Jinja/CSS can't measure content to
+     decide whether a busy month needs to shrink to fit the fixed
+     1080x1080 canvas. */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 28px;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    color: var(--body);
+  }
+  .legend-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 2px solid;
+  }
+  .legend-swatch--paid { border-color: var(--trading-up); }
+  .legend-swatch--upcoming { border-color: var(--accent); }
+  .legend-swatch--passed { border-color: var(--trading-down); }
+
+  .date-grid {
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat({{ cols }}, 1fr);
+    gap: 16px;
+    align-content: start;
+  }
+
+  .date-card {
+    background: var(--canvas-soft);
+    border-radius: var(--radius-card);
+    padding: 14px 20px 16px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .date-card__label {
+    text-align: center;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--ink);
+    margin: 0 0 12px;
+  }
+
+  .date-card__entries {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-content: center;
+    gap: 20px;
+    flex: 1;
+  }
+
+  .entry {
+    width: {{ tile_size_px }}px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .entry-tile {
+    width: {{ tile_size_px }}px;
+    height: {{ tile_size_px }}px;
+    border-radius: 10px;
+    border: 3px solid var(--faint);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--canvas);
+    padding: 6px;
+  }
+  .entry-tile--paid { border-color: var(--trading-up); }
+  .entry-tile--upcoming { border-color: var(--accent); }
+  .entry-tile--passed { border-color: var(--trading-down); }
+
+  .entry-tile img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .entry-tile .fallback {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink);
+    text-align: center;
+  }
+
+  .entry-ticker {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--ink);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="card__title-header">
+      <h1 class="card__title">{{ title }}</h1>
+      <p class="card__subtitle">{{ subtitle }}</p>
+    </div>
+
+    <div class="card__body">
+      <div class="legend">
+        <span class="legend-item"><span class="legend-swatch legend-swatch--upcoming"></span>Upcoming</span>
+        <span class="legend-item"><span class="legend-swatch legend-swatch--paid"></span>Paid</span>
+        <span class="legend-item"><span class="legend-swatch legend-swatch--passed"></span>Ex-date passed</span>
+      </div>
+
+      <div class="date-grid">
+        {% for date in dates %}
+        <div class="date-card">
+          <p class="date-card__label">{{ date.label }}</p>
+          <div class="date-card__entries">
+            {% for entry in date.entries %}
+            <div class="entry">
+              <div class="entry-tile entry-tile--{{ entry.chip_class }}">
+                {% if entry.logo_src %}<img src="{{ entry.logo_src }}" alt="" />{% else %}<span class="fallback">{{ entry.symbol }}</span>{% endif %}
+              </div>
+              <span class="entry-ticker">{{ entry.symbol }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card__footer">
+      <p class="footer-text">{{ footer_text }}</p>
+      <span class="watermark">{{ watermark }}</span>
+    </div>
+  </div>
+
+</body>
+</html>

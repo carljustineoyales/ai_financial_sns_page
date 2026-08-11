@@ -2,8 +2,7 @@
   Shared tokens + header/footer chrome for every rendering/templates/*.html
   card. Mirrors rendering/theme.py's palette/constants. Rendered to PNG by
   rendering/html_render.py (Playwright/Chromium) -- these templates are
-  the source of truth for card layout for every renderer except
-  dividend_stamp.py, which stays Pillow-based (rendering/primitives.py).
+  the source of truth for card layout for every renderer in this package.
 */
 :root {
   --canvas: #fafafa;

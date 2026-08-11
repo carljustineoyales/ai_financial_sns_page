@@ -110,20 +110,22 @@ The preview/confirm/post/record flow shared across every poster lives in
 `preview_and_post_text()` (text only, via `post_to_page`) is used by
 [main.py](main.py).
 Graphic cards (dividend calendars, year overview) are rendered to PNG via the
-[rendering/](rendering/) package (Pillow, DejaVu Sans, deliberately simple
-utility graphics rather than polished design) — `theme.py` holds the palette
-and layout constants, `primitives.py` holds shared drawing helpers, and each
-card type (table, calendar, dividend stamp, year overview, ticker grid) has
-its own module. [assets_logos.py](assets_logos.py) downloads/caches company
-logos into `assets/logos/` — **manual only**, not called by any pipeline
-script. Rendering reads whatever's already cached and silently renders
-without a logo for anything missing, so a cron run never triggers an
-unattended download+decode of an externally-hosted image. Run
+[rendering/](rendering/) package (deliberately simple utility graphics
+rather than polished design) — each card type builds a Jinja2 context and
+renders it through `rendering/templates/*.html` + `_shared.css` via headless
+Chromium (`html_render.py`); `theme.py` holds the palette/layout constants
+those templates mirror, and `primitives.py` holds the shared
+logo-decoding/context-building helpers every renderer uses.
+[assets_logos.py](assets_logos.py) downloads/caches company logos into
+`assets/logos/` — **manual only**, not called by any pipeline script.
+Rendering reads whatever's already cached and silently renders without a
+logo for anything missing, so a cron run never triggers an unattended
+download+decode of an externally-hosted image. Run
 `python assets_logos.py SYM1 SYM2 ...` or `--all` to backfill the cache.
 Both the download step (`assets_logos.py`) and the render step
-(`rendering/primitives.py`'s `_load_logo()`) reject any logo image over
-`MAX_LOGO_SOURCE_PIXELS` (4M pixels — generous for an icon, well under
-Pillow's own 89M-pixel bomb-detection threshold) rather than decode it —
+(`rendering/primitives.py`'s `_open_image_no_bomb_warning()`) reject any
+logo image over `MAX_LOGO_SOURCE_PIXELS` (4M pixels — generous for an icon,
+well under Pillow's own 89M-pixel bomb-detection threshold) rather than decode it —
 an oversized/corrupted download is deleted immediately instead of
 lingering in the cache.
 
