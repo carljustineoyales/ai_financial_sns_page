@@ -20,3 +20,9 @@ def setup_tracing(service_name):
     provider.add_span_processor(BatchSpanProcessor(exporter))
     trace.set_tracer_provider(provider)
     atexit.register(provider.shutdown)
+
+
+def setup_llm_tracing(app_name):
+    from traceloop.sdk import Traceloop
+
+    Traceloop.init(app_name=app_name, api_endpoint=OTLP_ENDPOINT, disable_batch=True)
