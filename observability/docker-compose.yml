@@ -48,7 +48,19 @@ services:
     depends_on:
       - cadvisor
 
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: -config.file=/etc/tempo/tempo.yaml
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+
 volumes:
   loki-data:
   grafana-data:
   prometheus-data:
+  tempo-data:
