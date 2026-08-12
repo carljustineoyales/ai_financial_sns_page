@@ -2,8 +2,14 @@ apiVersion: 1
 
 datasources:
   - name: Tempo
+    uid: tempo
     type: tempo
     access: proxy
     url: http://tempo:3200
     isDefault: false
     editable: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        customQuery: true
+        query: '{job="ai_financial_sns_page"} |= "trace_id=$${__span.traceId}"'
