@@ -23,18 +23,21 @@ import sys
 from datetime import date, datetime
 
 from dotenv import load_dotenv
+from opentelemetry import trace
 
 import dividend_declaration_graphics as graphics
 from logging_config import setup_logging
 from posters.preview_and_post import preview_and_post
 from scraper.market_movers import refresh_company_directory
 from scraper.pse_edge import get_company_dividends, get_dividends_and_rights
+from tracing_config import setup_tracing
 
 OUTPUT_DIR = os.path.join("output", "dividend_declarations")
 PRIOR_YEAR_TOLERANCE_DAYS = 60
 EX_DATE_WINDOW_DAYS = 14
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 def _fail(stage, exc):
@@ -153,31 +156,38 @@ def _process_declaration(declaration, symbol):
     except (ValueError, TypeError):
         prior_entry = None
 
-    image_path = os.path.join(item_dir, "card.png")
-    graphics.build_declaration_card(symbol, entry, prior_entry, image_path)
-    logger.info("%s: saved card to %s", symbol, image_path)
+    with tracer.start_as_current_span("render_card"):
+        image_path = os.path.join(item_dir, "card.png")
+        graphics.build_declaration_card(symbol, entry, prior_entry, image_path)
+        logger.info("%s: saved card to %s", symbol, image_path)
 
-    caption = graphics.build_declaration_caption(symbol, entry, prior_entry)
-    preview_and_post(image_path, caption, posted_marker)
+        caption = graphics.build_declaration_caption(symbol, entry, prior_entry)
+
+    with tracer.start_as_current_span("post"):
+        preview_and_post(image_path, caption, posted_marker)
 
 
 def main():
+    setup_tracing("dividend_declarations")
     setup_logging()
     load_dotenv()
 
-    logger.info("Fetching current dividend declarations from PSE Edge...")
-    try:
-        matches = get_new_declarations()
-    except Exception as e:
-        _fail("fetching declarations", e)
-        sys.exit(1)
+    with tracer.start_as_current_span("dividend_declarations_run"):
+        logger.info("Fetching current dividend declarations from PSE Edge...")
+        with tracer.start_as_current_span("fetch_declarations"):
+            try:
+                matches = get_new_declarations()
+            except Exception as e:
+                _fail("fetching declarations", e)
+                sys.exit(1)
 
-    if not matches:
-        logger.info("No dividend declarations found.")
-        return
+        if not matches:
+            logger.info("No dividend declarations found.")
+            return
 
-    for declaration, symbol in matches:
-        _process_declaration(declaration, symbol)
+        for declaration, symbol in matches:
+            with tracer.start_as_current_span("process_declaration", attributes={"symbol": symbol}):
+                _process_declaration(declaration, symbol)
 
 
 if __name__ == "__main__":
