@@ -44,6 +44,21 @@ def _annotate_cost(span):
     span._attributes["gen_ai.usage.cost_usd"] = round(cost, 6)
 
 
+def _annotate_speed(span):
+    attrs = span.attributes
+    total_tokens = attrs.get("gen_ai.usage.total_tokens")
+    if total_tokens is None:
+        return
+    duration_s = (span.end_time - span.start_time) / 1_000_000_000
+    if duration_s > 0:
+        span._attributes["gen_ai.usage.tokens_per_second"] = round(total_tokens / duration_s, 1)
+
+
+def _annotate_llm_span(span):
+    _annotate_cost(span)
+    _annotate_speed(span)
+
+
 def setup_llm_tracing(app_name):
     from traceloop.sdk import Traceloop
 
@@ -51,5 +66,5 @@ def setup_llm_tracing(app_name):
         app_name=app_name,
         api_endpoint=OTLP_ENDPOINT,
         disable_batch=True,
-        span_postprocess_callback=_annotate_cost,
+        span_postprocess_callback=_annotate_llm_span,
     )

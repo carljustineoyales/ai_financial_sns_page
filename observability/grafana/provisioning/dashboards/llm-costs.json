@@ -1,0 +1,30 @@
+{
+  "title": "LLM Call Costs",
+  "uid": "llm-costs",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "LLM Calls (main.py)",
+      "type": "table",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{resource.service.name=\"main\" && name=~\"generate_content.*\"} | select(span.gen_ai.request.model, span.gen_ai.usage.input_tokens, span.gen_ai.usage.output_tokens, span.gen_ai.usage.cost_usd, span.gen_ai.usage.tokens_per_second)",
+          "tableType": "spans",
+          "limit": 100
+        }
+      ]
+    }
+  ]
+}
